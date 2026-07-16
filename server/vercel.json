@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/.well-known/oauth-authorization-server", "destination": "/api/wellknown?type=as" },
+    { "source": "/.well-known/oauth-authorization-server/:path*", "destination": "/api/wellknown?type=as" },
+    { "source": "/.well-known/oauth-protected-resource", "destination": "/api/wellknown?type=pr" },
+    { "source": "/.well-known/oauth-protected-resource/:path*", "destination": "/api/wellknown?type=pr" },
+    { "source": "/oauth/authorize", "destination": "/authorize.html" },
+    { "source": "/mcp", "destination": "/api/mcp" }
+  ],
+  "functions": {
+    "api/mcp.js": { "maxDuration": 60 }
+  }
+}

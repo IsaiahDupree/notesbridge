@@ -1,0 +1,41 @@
+{
+  "name": "apple-notes-agent",
+  "version": "1.1.0",
+  "description": "Mac-side relay agent for NotesBridge: use Apple Notes from ChatGPT/Claude. Polls the relay server for jobs, runs them against Apple Notes via JXA, and can auto-start on login via a macOS LaunchAgent.",
+  "type": "module",
+  "bin": {
+    "apple-notes-agent": "./cli.mjs"
+  },
+  "files": [
+    "cli.mjs",
+    "notes-jxa.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "apple-notes",
+    "notes",
+    "mcp",
+    "chatgpt",
+    "claude",
+    "macos",
+    "jxa",
+    "osascript",
+    "notesbridge",
+    "automation",
+    "agent",
+    "launchagent"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IsaiahDupree/notesbridge",
+    "directory": "agent"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test-agent-unit.mjs"
+  }
+}
