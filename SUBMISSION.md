@@ -18,37 +18,35 @@ connector review), what's already done, and what only the account owner can do.
 
 ## Steps only the account owner can do
 
-1. **Developer / organization verification** at platform.openai.com (Settings →
-   Organization → Verification). Identity check; requires the Owner role.
-2. **Keep the demo credentials handy** for the submission form:
+*(Portal flow verified live 2026-07-17: the submission form is at
+`platform.openai.com/plugins` → **Create plugin** → **With MCP**. It is gated by
+identity verification — clicking Create plugin shows "Complete identity
+verification — you need a verified developer identity before you can create or
+upload a plugin." That check requires a government ID / selfie and can only be
+done by you.)*
+
+1. **Complete developer identity verification.** platform.openai.com → **Plugins**
+   → **Create plugin** → **With MCP** → **Continue** on the "Complete identity
+   verification" dialog, and finish the ID check (or do it up front at Settings →
+   Organization → **Verifications**). Requires the Owner role. *(Note: the org
+   already shows a base "Verified" status, but plugin creation needs this
+   developer-identity tier on top of it.)*
+2. **Keep the demo credentials handy** for the form:
    - Email: `reviewer@notesbridge.demo`
-   - Password: `DEMO_PASSWORD` in `.env.local` (already created and verified — do
-     not rotate it after submitting, reviewers will use it)
-3. **Submit** from the Platform dashboard (Apps → Submit):
-   - MCP Server URL: `https://notesbridge.vercel.app/mcp`
-   - Authentication: OAuth
-   - Privacy policy: `https://notesbridge.vercel.app/privacy`
-   - Support: `https://notesbridge.vercel.app/support`
-   - Icon: `assets/icon-512.png`
-   - Demo credentials: the reviewer account above
-   - Listing copy: below
+   - Password: the `DEMO_PASSWORD` value in `.env.local` (already created &
+     verified — do not rotate it after submitting; reviewers use it)
+3. **Create the plugin & submit.** Back at Plugins → Create plugin → With MCP:
+   - Enter MCP Server URL `https://notesbridge.vercel.app/mcp`, Authentication
+     **OAuth**, then click **Scan Tools** (auto-discovers all 8).
+   - Fill name, logo (`assets/icon-512.png`), description, company URL, privacy
+     (`/privacy`) and support (`/support`) URLs, test prompts, demo credentials —
+     all paste-ready in **LISTING.md**.
+   - Click **Submit for review**.
 
 ## Directory listing copy
 
-**Name:** NotesBridge
-
-**Tagline (short):** Your Apple Notes, in ChatGPT — search, read, and write, powered by your own Mac.
-
-**Description (long):**
-NotesBridge connects ChatGPT to the notes on your Mac. Search and read any
-note, create new ones, append to lists, or rewrite drafts — all from a chat.
-Your notes never live on our servers: every action is executed on your own
-Mac by a small open-source agent you install with one command
-(`npx apple-notes-agent`), and the relay only carries each request for the
-seconds it's in flight. Write actions are always confirmed by you in ChatGPT
-before they happen. Open source (MIT) and self-hostable.
-
-**Categories:** Productivity, Notes
+All paste-ready form values (name, tagline, description, URLs, demo credentials,
+test prompts + expected responses, OAuth endpoints) live in **LISTING.md**.
 
 *(Copy refers to "the notes on your Mac" / Notes app descriptively; the product
 name and branding contain no Apple marks.)*
