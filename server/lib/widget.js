@@ -50,7 +50,7 @@ export const NOTES_WIDGET_HTML = `<!doctype html>
 <script>
   var FOLDER_IC = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>';
   var NOTE_IC = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6"/></svg>';
-  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[c]; }); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]; }); };
   var fmtDate = function (iso) { if (!iso) return ''; try { return new Date(iso).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }); } catch (e) { return ''; } };
 
   function openNote(id) {
@@ -67,7 +67,8 @@ export const NOTES_WIDGET_HTML = `<!doctype html>
       var fs = data.folders || [];
       html = '<div class="hd"><span class="dot"></span>Folders · ' + fs.length + '</div>';
       html += fs.length ? '<div class="grid">' + fs.map(function (f) {
-        return '<div class="folder"><div class="n">' + esc(f.name) + '</div><div class="c">' + (f.count || 0) + ' note' + (f.count === 1 ? '' : 's') + '</div></div>';
+        var cnt = Number(f.count) || 0;
+        return '<div class="folder"><div class="n">' + esc(f.name) + '</div><div class="c">' + cnt + ' note' + (cnt === 1 ? '' : 's') + '</div></div>';
       }).join('') + '</div>' : '<div class="empty">No folders.</div>';
     } else if (view === 'notes' || view === 'results') {
       var items = view === 'notes' ? (data.notes || []) : (data.results || []);
@@ -75,7 +76,7 @@ export const NOTES_WIDGET_HTML = `<!doctype html>
       html = '<div class="hd"><span class="dot"></span>' + label + ' · ' + items.length + '</div>';
       html += items.length ? '<ul>' + items.map(function (n) {
         var meta = [n.folder, fmtDate(n.modified)].filter(Boolean).join(' · ');
-        return '<button class="row" onclick="openNote(\\'' + esc(n.id) + '\\')">' + NOTE_IC +
+        return '<button class="row" data-id="' + esc(n.id) + '">' + NOTE_IC +
           '<div class="body"><div class="t">' + esc(n.title) + '</div>' + (meta ? '<div class="meta">' + esc(meta) + '</div>' : '') + '</div></button>';
       }).join('') + '</ul>' : '<div class="empty">Nothing found.</div>';
     } else if (view === 'note') {
@@ -89,6 +90,13 @@ export const NOTES_WIDGET_HTML = `<!doctype html>
     }
     root.innerHTML = html;
   }
+
+  // Delegated click handler (no inline JS): open a note when its row is tapped.
+  // Attached once to #root, which persists across render() innerHTML swaps.
+  document.getElementById('root').addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button.row[data-id]') : null;
+    if (b) openNote(b.getAttribute('data-id'));
+  });
 
   window.addEventListener('openai:set_globals', render);
   document.addEventListener('DOMContentLoaded', render);

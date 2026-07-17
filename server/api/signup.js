@@ -9,8 +9,8 @@ export default async function handler(req, res) {
   if (!methodGuard(req, res, 'POST')) return;
   if (!(await rateLimit(req, res, { name: 'signup', limit: 5, windowSec: 600 }))) return;
   const { email, password } = readBody(req);
-  if (!email || !password || password.length < 8) {
-    return res.status(400).json({ error: 'Valid email and a password of 8+ characters required' });
+  if (!email || !password || password.length < 8 || password.length > 4096) {
+    return res.status(400).json({ error: 'Valid email and a password of 8–4096 characters required' });
   }
   const normalized = String(email).trim().toLowerCase();
   const key = `user:email:${normalized}`;

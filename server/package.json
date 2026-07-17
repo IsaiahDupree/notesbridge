@@ -2,6 +2,9 @@
   "name": "apple-notes-relay",
   "version": "1.2.0",
   "type": "module",
+  "scripts": {
+    "test": "node --test test-server-unit.mjs"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"

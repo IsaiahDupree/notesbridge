@@ -1,11 +1,35 @@
-// ratelimit.js — fixed-window rate limiter backed by Redis.
+// ratelimit.js — fixed-window rate limiter backed by the shared store.
 // Returns true if the request may proceed; sends a 429 and returns false otherwise.
 
 import { redis } from './redis.js';
 
 export function clientIp(req) {
-  const xf = req.headers['x-forwarded-for'];
-  return (Array.isArray(xf) ? xf[0] : (xf || '')).split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+  const h = req.headers || {};
+  // Use a platform-trusted source. `x-real-ip` is set by Vercel (and most
+  // reverse proxies) to the true client IP and is NOT client-spoofable like the
+  // LEFTMOST x-forwarded-for entry (which the client fully controls). If only
+  // x-forwarded-for is present, trust the RIGHTMOST hop — the one appended by
+  // the proxy closest to us — never the leftmost. Fall back to the socket.
+  const realIp = h['x-real-ip'];
+  if (realIp) return String(Array.isArray(realIp) ? realIp[0] : realIp).trim();
+  const xf = h['x-forwarded-for'];
+  if (xf) {
+    const parts = (Array.isArray(xf) ? xf.join(',') : String(xf)).split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+// In-process fallback, used only when the shared store is unreachable, so auth
+// endpoints stay metered (per serverless instance) instead of failing wide open.
+const localBuckets = new Map();
+function localHit(key, windowSec) {
+  const now = Date.now();
+  const e = localBuckets.get(key);
+  if (!e || e.exp <= now) { localBuckets.set(key, { n: 1, exp: now + windowSec * 1000 }); return 1; }
+  e.n += 1;
+  if (localBuckets.size > 5000) for (const [k, v] of localBuckets) if (v.exp <= now) localBuckets.delete(k);
+  return e.n;
 }
 
 export async function rateLimit(req, res, { name, limit, windowSec }) {
@@ -14,10 +38,11 @@ export async function rateLimit(req, res, { name, limit, windowSec }) {
   const key = `rl:${name}:${ip}:${window}`;
   let count;
   try {
-    count = await redis.incr(key);
-    if (count === 1) await redis.expire(key, windowSec + 5);
+    // Atomic incr that also sets the TTL when the key is first created, so a
+    // failed follow-up expire can never strand a bucket without expiry.
+    count = await redis.incr(key, windowSec + 5);
   } catch {
-    return true; // never let the limiter take the API down
+    count = localHit(key, windowSec); // degrade to a local limit, not to no limit
   }
   if (count > limit) {
     res.setHeader('retry-after', String(windowSec));

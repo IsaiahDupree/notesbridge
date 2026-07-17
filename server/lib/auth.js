@@ -5,6 +5,13 @@ import crypto from 'node:crypto';
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
+// Fail closed: refuse to run in production with a missing/default signing secret
+// (an attacker who knows the default could forge session/mcp tokens). Local dev
+// (NODE_ENV !== 'production') keeps the convenient fallback.
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || SECRET === 'dev-secret-change-me')) {
+  throw new Error('JWT_SECRET must be set to a strong random value in production (refusing to start with the dev default).');
+}
+
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 const fromB64u = (s) => Buffer.from(s, 'base64url').toString('utf8');
 

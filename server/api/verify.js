@@ -2,6 +2,7 @@
 // here (/verify?token=…, rewritten to /api/verify). Marks the account verified
 // and shows a small confirmation page.
 import { redis } from '../lib/redis.js';
+import { rateLimit } from '../lib/ratelimit.js';
 
 function page(title, message, ok) {
   const accent = ok ? '#4ade80' : '#f87171';
@@ -16,6 +17,11 @@ p{color:#9aa1af;font-size:14px;line-height:1.55}a{color:#f5b942;text-decoration:
 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+  // Light limit so the token endpoint can't be used for unmetered guessing.
+  if (!(await rateLimit(req, res, { name: 'verify', limit: 30, windowSec: 600 }))) return;
   const token = req.query.token;
   res.setHeader('content-type', 'text/html; charset=utf-8');
   const email = token && (await redis.get(`verify:${token}`));

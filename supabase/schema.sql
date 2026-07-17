@@ -73,19 +73,22 @@ begin
   return out_v;
 end $$;
 
--- Atomic fixed-window counter for rate limiting (Redis INCR semantics).
--- Single upsert = atomic under concurrency. If the existing row is expired,
--- the count resets to 1 and the expiry clears (caller re-sets it at count 1).
-create or replace function nb_incr(p_k text) returns int
+-- Atomic fixed-window counter for rate limiting (Redis INCR semantics), which
+-- also sets the TTL when the key is created or a stale window is reset — so a
+-- bucket can never persist without an expiry. Single upsert = atomic under
+-- concurrency; increments within a window keep the original expiry.
+create or replace function nb_incr(p_k text, p_ttl_sec int default null) returns int
 language plpgsql as $$
 declare out_v int;
 begin
-  insert into notesbridge_kv (k, v, expires_at) values (p_k, '1', null)
+  insert into notesbridge_kv (k, v, expires_at)
+  values (p_k, '1', case when p_ttl_sec is null then null else now() + make_interval(secs => p_ttl_sec) end)
   on conflict (k) do update set
     v = case when notesbridge_kv.expires_at is not null and notesbridge_kv.expires_at <= now()
              then '1' else ((notesbridge_kv.v)::int + 1)::text end,
     expires_at = case when notesbridge_kv.expires_at is not null and notesbridge_kv.expires_at <= now()
-                      then null else notesbridge_kv.expires_at end
+                      then (case when p_ttl_sec is null then null else now() + make_interval(secs => p_ttl_sec) end)
+                      else notesbridge_kv.expires_at end
   returning (v)::int into out_v;
   return out_v;
 end $$;

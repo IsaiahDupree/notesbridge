@@ -98,6 +98,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
       <span>Everything runs on <b>your own Mac</b> through your paired agent — your notes are never stored on our servers. Any note that creates or edits content is <b>confirmed by you inside ChatGPT</b> before it happens.</span>
     </div>
+    <p class="muted" id="redirectHost" style="font-size:12px;margin-top:2px"></p>
     <button onclick="approve()">Allow</button>
     <button class="secondary" onclick="deny()">Cancel</button>
   </div>
@@ -122,6 +123,12 @@
     $('loginView').classList.toggle('hidden', !!TOKEN);
     $('consentView').classList.toggle('hidden', !TOKEN);
     $('whoLine').innerHTML = TOKEN ? 'Signed in. <b>Not you?</b> Refresh to switch accounts.' : '';
+    // Show where the authorization code will be sent, so a spoofed client can't
+    // pass itself off as first-party by name alone.
+    try {
+      var host = new URL(q.get('redirect_uri')).host;
+      $('redirectHost').textContent = 'After you allow, you’ll be returned to ' + host;
+    } catch (e) { $('redirectHost').textContent = ''; }
   }
 
   async function doAuth(mode) {

@@ -31,6 +31,11 @@ export async function enqueueJob(userId, tool, args) {
     );
   }
   const jobId = randomId('job');
+  // Record the job's owner so /api/agent/result can reject a result posted by an
+  // agent that wasn't issued this job (defense-in-depth: jobIds are 96-bit random
+  // and never exposed, so this isn't currently reachable, but it hard-scopes the
+  // destructive tools to the paired Mac that received the job).
+  await redis.set(`jobowner:${jobId}`, userId, JOB_TTL + Math.ceil(RESULT_WAIT_MS / 1000) + 5);
   // Stamp enqueuedAt so the agent can skip any job it pops after the caller's
   // RESULT_WAIT_MS window has already elapsed (belt-and-suspenders with JOB_TTL).
   await redis.lpush(`jobs:${userId}`, JSON.stringify({ jobId, tool, args, enqueuedAt: Date.now() }));
