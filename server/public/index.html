@@ -146,6 +146,9 @@
 
   .hidden{display:none !important;}
   .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0);}
+  .sitefoot { text-align:center; padding:28px 16px 20px; color:var(--muted); font-size:13px; }
+  .sitefoot a { color:var(--muted); text-decoration:none; margin:0 10px; }
+  .sitefoot a:hover { color:var(--accent); }
 </style>
 </head>
 <body>
@@ -300,6 +303,10 @@
       <button onclick="logout()">Sign out</button>
     </div>
   </section>
+
+  <footer class="sitefoot">
+    <a href="/privacy">Privacy</a>·<a href="/support">Support</a>·<a href="https://github.com/IsaiahDupree/notesbridge" rel="noopener">GitHub</a>
+  </footer>
 
 </div>
 

@@ -2,9 +2,11 @@
 import { redis } from '../../lib/redis.js';
 import { randomId } from '../../lib/auth.js';
 import { readBody, methodGuard } from '../../lib/http.js';
+import { rateLimit } from '../../lib/ratelimit.js';
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, 'POST')) return;
+  if (!(await rateLimit(req, res, { name: 'register', limit: 20, windowSec: 3600 }))) return;
   const body = readBody(req);
   const redirectUris = body.redirect_uris;
   if (!Array.isArray(redirectUris) || redirectUris.length === 0) {

@@ -2,6 +2,7 @@
 import { redis } from '../../lib/redis.js';
 import { signJwt, sha256b64u, randomId } from '../../lib/auth.js';
 import { readBody, methodGuard } from '../../lib/http.js';
+import { rateLimit } from '../../lib/ratelimit.js';
 
 const ACCESS_TTL = 60 * 60; // 1h
 const REFRESH_TTL = 60 * 60 * 24 * 90; // 90d
@@ -21,6 +22,7 @@ async function issueTokens(res, userId) {
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, 'POST')) return;
+  if (!(await rateLimit(req, res, { name: 'token', limit: 60, windowSec: 60 }))) return;
   const body = readBody(req);
 
   if (body.grant_type === 'authorization_code') {

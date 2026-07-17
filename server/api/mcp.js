@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { buildServer } from '../lib/mcpTools.js';
 import { verifyJwt, bearer } from '../lib/auth.js';
 import { baseUrl } from '../lib/http.js';
+import { redis } from '../lib/redis.js';
 
 export default async function handler(req, res) {
   const base = baseUrl(req);
@@ -26,7 +27,8 @@ export default async function handler(req, res) {
     });
   }
 
-  const server = buildServer(payload.sub);
+  const demo = !!(await redis.get(`demo:${payload.sub}`));
+  const server = buildServer(payload.sub, { demo });
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on('close', () => {
     transport.close();

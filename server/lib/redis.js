@@ -33,6 +33,7 @@ function supabase() {
     lpush: (k, v) => rpc('nb_lpush', { p_k: k, p_v: asString(v) }),
     rpop: (k) => rpc('nb_rpop', { p_k: k }),
     expire: (k, ttlSec) => rpc('nb_expire', { p_k: k, p_ttl_sec: ttlSec }),
+    incr: (k) => rpc('nb_incr', { p_k: k }),
   };
 }
 
@@ -77,6 +78,13 @@ function memory() {
       const e = kv.get(k) || lists.get(k);
       if (e) e.exp = Date.now() + ttlSec * 1000;
       return e ? 1 : 0;
+    },
+    async incr(k) {
+      sweep(kv, k);
+      const e = kv.get(k);
+      const v = (e ? parseInt(e.v, 10) || 0 : 0) + 1;
+      kv.set(k, { v: String(v), exp: e?.exp ?? null });
+      return v;
     },
   };
 }

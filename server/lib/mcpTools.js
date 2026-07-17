@@ -4,6 +4,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { enqueueJob } from './relay.js';
+import { demoExec } from './demoStore.js';
 
 const asText = (obj) => ({ content: [{ type: 'text', text: JSON.stringify(obj, null, 2) }] });
 const asError = (err) => ({
@@ -12,11 +13,14 @@ const asError = (err) => ({
 });
 const noteUrl = (id) => `applenotes://note/${encodeURIComponent(id)}`;
 
-export function buildServer(userId) {
+export function buildServer(userId, { demo = false } = {}) {
   const server = new McpServer({ name: 'apple-notes-relay', version: '1.0.0' });
+  // Demo accounts run against server-side sample notes (no Mac agent needed);
+  // real accounts relay to the user's paired Mac.
+  const exec = demo ? (tool, args) => demoExec(userId, tool, args) : (tool, args) => enqueueJob(userId, tool, args);
   const forward = (tool) => async (args) => {
     try {
-      return asText(await enqueueJob(userId, tool, args ?? {}));
+      return asText(await exec(tool, args ?? {}));
     } catch (e) {
       return asError(e);
     }
@@ -32,7 +36,7 @@ export function buildServer(userId) {
     },
     async ({ query }) => {
       try {
-        const { results } = await enqueueJob(userId, 'searchNotes', { query, limit: 20 });
+        const { results } = await exec('searchNotes', { query, limit: 20 });
         return asText({ results: results.map((r) => ({ id: r.id, title: r.title, url: noteUrl(r.id) })) });
       } catch (e) {
         return asError(e);
@@ -50,7 +54,7 @@ export function buildServer(userId) {
     },
     async ({ id }) => {
       try {
-        const { note } = await enqueueJob(userId, 'getNote', { id });
+        const { note } = await exec('getNote', { id });
         return asText({
           id: note.id,
           title: note.title,

@@ -3,9 +3,11 @@
 import { redis } from '../../lib/redis.js';
 import { requireAuth, randomId } from '../../lib/auth.js';
 import { readBody, methodGuard } from '../../lib/http.js';
+import { rateLimit } from '../../lib/ratelimit.js';
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, 'POST')) return;
+  if (!(await rateLimit(req, res, { name: 'authorize', limit: 30, windowSec: 600 }))) return;
   const session = requireAuth(req, res, 'session');
   if (!session) return;
 

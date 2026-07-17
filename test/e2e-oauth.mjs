@@ -113,5 +113,69 @@ const call = await mcp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { 
 const text = call.body.result?.content?.[0]?.text || '';
 ok('relay probe (agent offline or online)', text.includes('agent is offline') || text.includes('folders'), text.slice(0, 80));
 
+// ---------------------------------------------------------------- submission readiness
+
+// 10. privacy + support pages (required by the app directory review)
+for (const p of ['/privacy', '/support']) {
+  const r = await fetch(BASE + p);
+  const t = await r.text();
+  ok(`${p} page serves`, r.status === 200 && t.length > 500, `status ${r.status}`);
+}
+
+// 11. reviewer demo mode: full flow with NO Mac agent involved
+const DEMO_EMAIL = 'reviewer@notesbridge.demo';
+const DEMO_PASSWORD = env.DEMO_PASSWORD;
+if (DEMO_PASSWORD) {
+  let ds = await post('/api/signup', { email: DEMO_EMAIL, password: DEMO_PASSWORD });
+  if (ds.status === 409) ds = await post('/api/login', { email: DEMO_EMAIL, password: DEMO_PASSWORD });
+  ok('demo account session', !!ds.body.token, `status ${ds.status}`);
+
+  const dAuth = await post('/api/oauth/authorize',
+    { client_id: CLIENT, redirect_uri: REDIRECT, code_challenge: challenge, code_challenge_method: 'S256' },
+    { authorization: `Bearer ${ds.body.token}` });
+  const dCode = new URL(dAuth.body.redirect).searchParams.get('code');
+  const dTok = await post('/api/oauth/token', { grant_type: 'authorization_code', code: dCode, code_verifier: verifier, redirect_uri: REDIRECT });
+  ok('demo OAuth issues mcp token', !!dTok.body.access_token);
+
+  const dmcp = async (body) => {
+    const r = await fetch(BASE + '/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${dTok.body.access_token}` },
+      body: JSON.stringify(body),
+    });
+    const t = await r.text();
+    const m = t.match(/^data: (.*)$/m);
+    return JSON.parse(m ? m[1] : t || '{}');
+  };
+  const toolText = (r) => r.result?.content?.[0]?.text || '';
+
+  const dFolders = await dmcp({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'list_folders', arguments: {} } });
+  ok('demo list_folders (no agent)', toolText(dFolders).includes('"folders"') && !toolText(dFolders).includes('offline'), toolText(dFolders).slice(0, 60));
+
+  const dSearch = await dmcp({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'search', arguments: { query: 'sourdough' } } });
+  ok('demo search finds sample note', toolText(dSearch).includes('Sourdough'));
+
+  const stamp = `e2e-${Date.now()}`;
+  const dCreate = await dmcp({ jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'create_note', arguments: { title: stamp, body: 'created by e2e' } } });
+  const createdId = (toolText(dCreate).match(/"id": "([^"]+)"/) || [])[1];
+  ok('demo create_note', !!createdId, toolText(dCreate).slice(0, 60));
+
+  const dGet = await dmcp({ jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'get_note', arguments: { id: createdId } } });
+  ok('demo re-read of created note', toolText(dGet).includes(stamp) && toolText(dGet).includes('created by e2e'));
+} else {
+  ok('demo account checks (DEMO_PASSWORD in .env.local)', false, 'DEMO_PASSWORD not set');
+}
+
+// 12. rate limiting: /api/pair/claim allows 10/10min then 429s.
+// (claim is the safe endpoint to exhaust — nothing later in this suite uses it)
+let sawLimit = false;
+let non429 = 0;
+for (let i = 0; i < 11; i++) {
+  const r = await post('/api/pair/claim', { code: 'E2E-BOGUS' });
+  if (r.status === 429) { sawLimit = true; break; }
+  if (r.status !== 400) non429++;
+}
+ok('rate limit fires (429 on claim)', sawLimit && non429 === 0, sawLimit ? '429 observed' : 'no 429 after 11 attempts');
+
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
