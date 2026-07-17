@@ -22,7 +22,15 @@ const CONFIG_PATH = join(homedir(), '.notesbridge-agent.json');
 // Written when `run` gets a 401 so a background (launchd) agent leaves a trail
 // explaining why it keeps exiting; cleared on the next healthy poll.
 const UNAUTHORIZED_MARKER = join(homedir(), '.notesbridge-agent.unauthorized');
-const POLL_MS = 1500; // must stay well under the server's 75s online TTL
+// Long-poll: ask the server to hold the connection open for up to this many
+// seconds and return the instant a job arrives (push-like). On return the agent
+// reconnects immediately, so jobs are picked up with sub-second latency.
+const POLL_WAIT_SEC = 25; // must stay under the server's poll maxDuration (30s)
+const POLL_TIMEOUT_MS = (POLL_WAIT_SEC + 10) * 1000; // abort a stuck hang
+// Fallback floor: if the server ever returns a null poll quickly (e.g. an older
+// server that ignores ?wait), don't reconnect faster than this — protects the
+// server from a tight loop while a proper long-poll server never triggers it.
+const POLL_MIN_SPACING_MS = 1500;
 const BACKOFF_MS = 5000; // starting backoff on failure
 const MAX_BACKOFF_MS = 30_000; // cap so a long outage doesn't hammer the server
 // Matches the server's RESULT_WAIT_MS. A job popped after this much time has
@@ -63,7 +71,7 @@ function saveConfig(config) {
   chmodSync(CONFIG_PATH, 0o600); // writeFileSync mode is ignored when the file already exists
 }
 
-async function api(server, path, { method = 'GET', token, body } = {}) {
+async function api(server, path, { method = 'GET', token, body, signal } = {}) {
   return fetch(server.replace(/\/+$/, '') + path, {
     method,
     headers: {
@@ -71,6 +79,7 @@ async function api(server, path, { method = 'GET', token, body } = {}) {
       ...(body ? { 'content-type': 'application/json' } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
+    signal,
   });
 }
 
@@ -219,15 +228,19 @@ async function cmdRun(serverFlag) {
   const token = config.token;
 
   installSignalHandlers();
-  log(`apple-notes-agent v${VERSION} starting — pid ${process.pid}, server ${server}, polling every ${POLL_MS}ms`);
+  log(`apple-notes-agent v${VERSION} starting — pid ${process.pid}, server ${server}, long-poll wait ${POLL_WAIT_SEC}s`);
 
   let backoff = BACKOFF_MS;
   for (;;) {
     // Outer guard: no single iteration may ever kill the daemon.
     try {
       let job = null;
+      const t0 = Date.now();
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), POLL_TIMEOUT_MS);
       try {
-        const res = await api(server, '/api/agent/poll', { token });
+        // Hanging long-poll: the server returns the moment a job is enqueued.
+        const res = await api(server, `/api/agent/poll?wait=${POLL_WAIT_SEC}`, { token, signal: ac.signal });
         if (res.status === 401) return handleRunUnauthorized(server);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         ({ job } = await res.json());
@@ -238,9 +251,15 @@ async function cmdRun(serverFlag) {
         await sleep(backoff);
         backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
         continue;
+      } finally {
+        clearTimeout(timer);
       }
       if (!job) {
-        await sleep(POLL_MS);
+        // Nothing queued during the hang. Reconnect immediately — unless the
+        // server returned suspiciously fast (didn't honor the long-poll), in
+        // which case throttle to avoid a tight loop against an older server.
+        const elapsed = Date.now() - t0;
+        if (elapsed < POLL_MIN_SPACING_MS) await sleep(POLL_MIN_SPACING_MS - elapsed);
         continue;
       }
       if (job.enqueuedAt && Date.now() - job.enqueuedAt > STALE_JOB_MS) {
@@ -410,7 +429,7 @@ Usage: apple-notes-agent <command> [--server URL]
 
 Commands:
   pair <CODE>   Claim a pairing code from the NotesBridge site and save the agent token.
-  run           Poll the server for jobs and run them against Apple Notes (foreground).
+  run           Long-poll the server for jobs and run them against Apple Notes (foreground).
   install       Install a macOS LaunchAgent so the agent starts on login and restarts on crash.
   uninstall     Stop and remove the LaunchAgent.
   logs          Show the last ~50 lines of the background agent log.

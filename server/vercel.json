@@ -11,6 +11,7 @@
     { "source": "/mcp", "destination": "/api/mcp" }
   ],
   "functions": {
-    "api/mcp.js": { "maxDuration": 60 }
+    "api/mcp.js": { "maxDuration": 60 },
+    "api/agent/poll.js": { "maxDuration": 30 }
   }
 }

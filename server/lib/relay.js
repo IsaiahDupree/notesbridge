@@ -11,7 +11,8 @@ import { randomId } from './auth.js';
 // wake, pop it, and run it (an orphan write on the destructive tools).
 const JOB_TTL = 45; // seconds
 const RESULT_WAIT_MS = 50_000;
-const RESULT_POLL_MS = 400;
+const RESULT_POLL_MS = 150; // how often the MCP side re-checks for a result
+const WAIT_POLL_MS = 200; // how often a hanging long-poll re-checks for a new job
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -51,6 +52,23 @@ export async function enqueueJob(userId, tool, args) {
 export async function popJob(userId) {
   const raw = await redis.rpop(`jobs:${userId}`);
   return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+}
+
+// Long-poll: return the next job immediately if one is queued, otherwise hold
+// the connection open and re-check every WAIT_POLL_MS until a job arrives or
+// waitSec elapses. This is the "push" path — a job is handed to the agent within
+// WAIT_POLL_MS of being enqueued, instead of waiting out a fixed client poll
+// interval. waitSec <= 0 preserves the old immediate-return behavior.
+export async function waitForJob(userId, waitSec) {
+  let job = await popJob(userId);
+  if (job || !(waitSec > 0)) return job;
+  const deadline = Date.now() + waitSec * 1000;
+  while (Date.now() < deadline) {
+    await sleep(WAIT_POLL_MS);
+    job = await popJob(userId);
+    if (job) return job;
+  }
+  return null;
 }
 
 export async function pushResult(jobId, payload) {

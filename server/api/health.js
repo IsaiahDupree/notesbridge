@@ -17,6 +17,6 @@ export default async function handler(req, res) {
     redisConfigured,
     redisOk,
     jwtSecretSet: !!process.env.JWT_SECRET,
-    version: '1.1.0',
+    version: '1.2.0',
   });
 }
