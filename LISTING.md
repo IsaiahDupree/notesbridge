@@ -63,8 +63,12 @@ Sign in as the reviewer account, add the connector via OAuth, then:
 `append_to_note`, `update_note` (the last is annotated destructive → ChatGPT
 confirms before overwriting).
 
-## Screenshots (optional — no custom UI)
+## Custom UI component
 
-NotesBridge returns text/JSON, not a custom Apps-SDK component, so screenshots
-are optional. If you want to include any, use the connector detail and a chat
-showing a folder list.
+NotesBridge ships an Apps SDK UI component (`ui://widget/notes.html`) that the 5
+read tools (`search`, `fetch`, `list_folders`, `list_notes`, `get_note`) render:
+folders as a card grid, notes/search results as a tappable list, a single note
+as a formatted card. It adapts to ChatGPT's light/dark theme and lets the user
+click a note to open it (`callTool('fetch', …)`). The component only renders in
+ChatGPT once the app is approved (developer-mode connectors show tool output as
+text) — so screenshots taken pre-approval will show text, not the cards.

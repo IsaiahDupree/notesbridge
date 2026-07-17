@@ -13,6 +13,7 @@ connector review), what's already done, and what only the account owner can do.
 | Rate limiting on auth + OAuth endpoints | ✅ live | signup 5/10min, login 10/10min, authorize 30/10min, token 60/min, register 20/hr, claim 10/10min — 429 verified in e2e |
 | **Reviewer demo mode** | ✅ live | Any account with email `reviewer@notesbridge.demo` runs all 8 tools against server-side sample notes — works 24/7 with **no Mac agent**. Real accounts are unaffected. Verified in e2e (search/create/re-read with zero agents running). |
 | Onboarding UX | ✅ live | 4-step wizard with live agent status at the root URL |
+| Apps SDK UI component | ✅ built & wired | `ui://widget/notes.html` on the 5 read tools (folders/notes/search/note cards). Protocol-verified live. **Renders only once the app is approved** — developer-mode connectors display tool output as text (confirmed empirically with both `text/html+skybridge` and `text/html;profile=mcp-app`). No effect on the working connector; e2e stays green. |
 | 512×512 icon | ✅ | `assets/icon-512.png` |
 | Full e2e suite | ✅ 22 green checks | `node test/e2e-oauth.mjs` |
 

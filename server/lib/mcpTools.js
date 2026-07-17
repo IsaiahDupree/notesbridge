@@ -5,6 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { enqueueJob } from './relay.js';
 import { demoExec } from './demoStore.js';
+import { NOTES_WIDGET_HTML, WIDGET_URI, WIDGET_MIME } from './widget.js';
 
 const asText = (obj) => ({ content: [{ type: 'text', text: JSON.stringify(obj, null, 2) }] });
 const asError = (err) => ({
@@ -13,8 +14,28 @@ const asError = (err) => ({
 });
 const noteUrl = (id) => `applenotes://note/${encodeURIComponent(id)}`;
 
+// Tool result that ALSO renders the notes widget as an Apps SDK component:
+// keep the JSON text (the model reads it), attach structuredContent for the
+// widget, and point at the widget template via both accepted _meta keys.
+const withCard = (view, structured, textObj) => ({
+  content: [{ type: 'text', text: JSON.stringify(textObj, null, 2) }],
+  structuredContent: { view, ...structured },
+  _meta: { 'openai/outputTemplate': WIDGET_URI, ui: { resourceUri: WIDGET_URI } },
+});
+
 export function buildServer(userId, { demo = false } = {}) {
   const server = new McpServer({ name: 'apple-notes-relay', version: '1.0.0' });
+
+  // Register the UI component ChatGPT renders for the read tools.
+  server.registerResource(
+    'notes-widget',
+    WIDGET_URI,
+    { title: 'Apple Notes', description: 'Renders notes, folders, and search results as cards.' },
+    async () => ({
+      contents: [{ uri: WIDGET_URI, mimeType: WIDGET_MIME, text: NOTES_WIDGET_HTML, _meta: { ui: { prefersBorder: true } } }],
+    })
+  );
+
   // Demo accounts run against server-side sample notes (no Mac agent needed);
   // real accounts relay to the user's paired Mac.
   const exec = demo ? (tool, args) => demoExec(userId, tool, args) : (tool, args) => enqueueJob(userId, tool, args);
@@ -26,6 +47,10 @@ export function buildServer(userId, { demo = false } = {}) {
     }
   };
 
+  // Declaring the widget on the tool definition (not just the result) is what
+  // tells ChatGPT at tools/list time to render a component for this tool.
+  const cardMeta = { 'openai/outputTemplate': WIDGET_URI, ui: { resourceUri: WIDGET_URI } };
+
   server.registerTool(
     'search',
     {
@@ -33,11 +58,13 @@ export function buildServer(userId, { demo = false } = {}) {
       description: "Search the user's Apple Notes by keyword. Returns matching notes with ids; use fetch to read one.",
       inputSchema: { query: z.string() },
       annotations: { readOnlyHint: true },
+      _meta: cardMeta,
     },
     async ({ query }) => {
       try {
         const { results } = await exec('searchNotes', { query, limit: 20 });
-        return asText({ results: results.map((r) => ({ id: r.id, title: r.title, url: noteUrl(r.id) })) });
+        const items = results.map((r) => ({ id: r.id, title: r.title, url: noteUrl(r.id) }));
+        return withCard('results', { query, results: items }, { results: items });
       } catch (e) {
         return asError(e);
       }
@@ -51,17 +78,19 @@ export function buildServer(userId, { demo = false } = {}) {
       description: 'Fetch the full content of a note by id (from search results).',
       inputSchema: { id: z.string() },
       annotations: { readOnlyHint: true },
+      _meta: cardMeta,
     },
     async ({ id }) => {
       try {
         const { note } = await exec('getNote', { id });
-        return asText({
+        const text = {
           id: note.id,
           title: note.title,
           text: note.plaintext,
           url: noteUrl(note.id),
           metadata: { folder: note.folder, created: note.created, modified: note.modified },
-        });
+        };
+        return withCard('note', { note: { id: note.id, title: note.title, text: note.plaintext, folder: note.folder, created: note.created, modified: note.modified } }, text);
       } catch (e) {
         return asError(e);
       }
@@ -70,8 +99,15 @@ export function buildServer(userId, { demo = false } = {}) {
 
   server.registerTool(
     'list_folders',
-    { title: 'List Notes folders', description: 'List all Apple Notes folders with note counts.', inputSchema: {}, annotations: { readOnlyHint: true } },
-    forward('listFolders')
+    { title: 'List Notes folders', description: 'List all Apple Notes folders with note counts.', inputSchema: {}, annotations: { readOnlyHint: true }, _meta: cardMeta },
+    async () => {
+      try {
+        const res = await exec('listFolders', {});
+        return withCard('folders', { folders: res.folders || [] }, res);
+      } catch (e) {
+        return asError(e);
+      }
+    }
   );
 
   server.registerTool(
@@ -84,8 +120,16 @@ export function buildServer(userId, { demo = false } = {}) {
         limit: z.number().int().min(1).max(100).optional(),
       },
       annotations: { readOnlyHint: true },
+      _meta: cardMeta,
     },
-    forward('listNotes')
+    async (args) => {
+      try {
+        const res = await exec('listNotes', args ?? {});
+        return withCard('notes', { notes: res.notes || [] }, res);
+      } catch (e) {
+        return asError(e);
+      }
+    }
   );
 
   server.registerTool(
@@ -95,8 +139,16 @@ export function buildServer(userId, { demo = false } = {}) {
       description: 'Read a note by id or (fuzzy) title.',
       inputSchema: { id: z.string().optional(), title: z.string().optional() },
       annotations: { readOnlyHint: true },
+      _meta: cardMeta,
     },
-    forward('getNote')
+    async (args) => {
+      try {
+        const { note } = await exec('getNote', args ?? {});
+        return withCard('note', { note: { id: note.id, title: note.title, text: note.plaintext, folder: note.folder, created: note.created, modified: note.modified } }, { note });
+      } catch (e) {
+        return asError(e);
+      }
+    }
   );
 
   server.registerTool(
