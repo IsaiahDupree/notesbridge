@@ -54,7 +54,4 @@ All notable changes to NotesBridge. Versions cover the server (relay) and the
 - Initial release: OAuth 2.1 + PKCE + DCR, streamable-HTTP MCP endpoint, job
   relay, and the `apple-notes-agent` Mac CLI (JXA against Apple Notes).
 
-[1.3.0]: https://github.com/IsaiahDupree/notesbridge/releases/tag/v1.3.0
-[1.2.0]: https://github.com/IsaiahDupree/notesbridge/releases/tag/v1.2.0
-[1.1.0]: https://github.com/IsaiahDupree/notesbridge/releases/tag/v1.1.0
-[1.0.0]: https://github.com/IsaiahDupree/notesbridge/releases/tag/v1.0.0
+Releases: https://github.com/IsaiahDupree/notesbridge/releases
