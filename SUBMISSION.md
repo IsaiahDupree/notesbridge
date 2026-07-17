@@ -76,20 +76,25 @@ only affects public discoverability.
 
 ## Automation
 
-`kit/submit-plugin.mjs` drives the submission form in the agent Chrome (CDP :9222):
-it opens Create plugin → With MCP, fills every field from the values above, runs
-Scan Tools, and **stops before "Submit for review"** for you to eyeball. Re-run
-with `SUBMIT=1` to also click submit.
+`kit/submit-plugin.mjs` drives the submission form in the agent Chrome (CDP :9222),
+config-driven from `kit/submission.config.json`. It walks Create plugin → With MCP
+→ Standard → the multi-section editor, fully automates the **App Info** section
+(name, ≤30-char subtitle, description, Category + Developer Identity comboboxes,
+author, all four URLs, icon uploads), fills later sections best-effort, detects
+which required fields still block "Continue", and **stops before "Submit for review"**.
 
 ```bash
-cd kit && node submit-plugin.mjs        # fills the form, stops before submit
-SUBMIT=1 node submit-plugin.mjs         # also clicks Submit for review
+cd kit && npm install
+node submit-plugin.mjs                                   # fill the form, stop before submit
+DRAFT_URL="https://platform.openai.com/plugins/edit/..." \
+  node submit-plugin.mjs                                 # resume an existing draft
+SUBMIT=1 node submit-plugin.mjs                          # also click Submit for review
 ```
 
-It requires the identity gate (step 1) to be cleared first — if it isn't, the
-script prints instructions and waits, then continues automatically once you've
-verified. (Field selectors are best-effort since the form is gated; watch the
-first run — it prints exactly what to set for anything it can't fill.)
+Two fields the script can only flag, not fill: **developer identity verification**
+(step 1) and the **Demo Recording URL** (a hosted screen-recording of the plugin
+working — put it in `submission.config.json`). Full details + the companion
+connector automation: **[kit/README.md](./kit/README.md)**.
 
 ## Re-verify before submitting
 

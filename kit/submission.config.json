@@ -1,0 +1,36 @@
+{
+  "$comment": "Config for submit-plugin.mjs — the OpenAI plugin submission automation. Edit these values to reuse the automation for any MCP plugin. Secrets (the reviewer demo password) are NOT stored here; they are read from ../.env.local by env var name.",
+  "mcpUrl": "https://notesbridge.vercel.app/mcp",
+  "authentication": "OAuth",
+  "info": {
+    "name": "NotesBridge",
+    "subtitle": "Apple Notes in ChatGPT",
+    "subtitleNote": "Subtitle MUST be 30 characters or fewer (OpenAI validates this).",
+    "description": "NotesBridge connects ChatGPT to the notes on your Mac. Search and read any note, create new ones, append to lists, or rewrite drafts — all from a chat. Your notes never live on our servers: every action is executed on your own Mac by a small open-source agent you install with one command (npx apple-notes-agent), and the relay only carries each request for the seconds it's in flight. Write actions are always confirmed by you in ChatGPT before they happen. Open source (MIT) and self-hostable.",
+    "category": "Productivity",
+    "developerIdentity": "Dupree Ops",
+    "developerIdentityNote": "Substring matched against the verified identities in the dropdown. Requires completing developer identity verification first.",
+    "pluginAuthor": "Isaiah Dupree",
+    "websiteUrl": "https://notesbridge.vercel.app",
+    "supportUrl": "https://notesbridge.vercel.app/support",
+    "privacyUrl": "https://notesbridge.vercel.app/privacy",
+    "termsUrl": "https://notesbridge.vercel.app/terms",
+    "demoRecordingUrl": "",
+    "demoRecordingNote": "REQUIRED by OpenAI. Record a screen video of the plugin working (per Developer Mode), host it (YouTube/Loom/etc.), and put the URL here. The automation cannot create this.",
+    "directoryIcon": "../assets/icon-512.png",
+    "composerIcon": "../assets/icon-512.png",
+    "commerceLinksOutForPurchases": false
+  },
+  "reviewerDemo": {
+    "note": "Reviewers use these to test the app 24/7 with no Mac (demo mode). The password lives in ../.env.local, never in this file.",
+    "email": "reviewer@notesbridge.demo",
+    "passwordEnvVar": "DEMO_PASSWORD"
+  },
+  "testPrompts": [
+    { "prompt": "List my Apple Notes folders", "expected": "list_folders → { folders: [ {name:'Notes',count:...}, ... ] }" },
+    { "prompt": "Search my notes for sourdough", "expected": "search → the 'Sourdough recipe' note" },
+    { "prompt": "What's on my grocery list?", "expected": "search → 'Grocery list', then fetch → milk, eggs, coffee beans, blueberries" },
+    { "prompt": "Create a note titled Demo idea with the body Try NotesBridge", "expected": "create_note → confirms, returns the new note" },
+    { "prompt": "List the notes in my Work folder", "expected": "list_notes → 'Q3 planning'" }
+  ]
+}

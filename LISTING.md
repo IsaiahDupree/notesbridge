@@ -17,22 +17,27 @@ SUBMISSION.md).
 
 After entering the URL, click **Scan Tools** — it should discover all 8 tools.
 
-## Listing
+## Listing (App Info section — exact fields on the live form)
 
-**Name:** NotesBridge
-
-**Logo:** `assets/icon-512.png` (512×512 PNG)
-
-**Short tagline:** Your Apple Notes, in ChatGPT — search, read, and write, powered by your own Mac.
+| Field | Value |
+|---|---|
+| **Name** | NotesBridge |
+| **Subtitle** ⚠️ ≤30 chars | `Apple Notes in ChatGPT` |
+| **Category** | Productivity |
+| **Developer Identity** | Business — Dupree Ops LLC *(the verified identity; requires ID verification first)* |
+| **Plugin Author** | Isaiah Dupree |
+| **Website URL** | `https://notesbridge.vercel.app` |
+| **Customer support URL** | `https://notesbridge.vercel.app/support` |
+| **Privacy policy URL** | `https://notesbridge.vercel.app/privacy` |
+| **Terms of Service URL** | `https://notesbridge.vercel.app/terms` |
+| **Demo Recording URL** ⚠️ required | *(a hosted screen-recording of the plugin working — you must record this)* |
+| **Directory icon / composer icon** | `assets/icon-512.png` (512×512 PNG) |
+| **Commerce & Purchasing** | leave unchecked (no purchases) |
 
 **Description:**
 > NotesBridge connects ChatGPT to the notes on your Mac. Search and read any note, create new ones, append to lists, or rewrite drafts — all from a chat. Your notes never live on our servers: every action is executed on your own Mac by a small open-source agent you install with one command (`npx apple-notes-agent`), and the relay only carries each request for the seconds it's in flight. Write actions are always confirmed by you in ChatGPT before they happen. Open source (MIT) and self-hostable.
 
-**Company / website URL:** `https://notesbridge.vercel.app`
-**Privacy policy URL:** `https://notesbridge.vercel.app/privacy`
-**Support URL:** `https://notesbridge.vercel.app/support`
-**Categories:** Productivity, Notes
-**Localization:** English (en-US)
+*These values are also encoded in [`kit/submission.config.json`](./kit/submission.config.json), which `kit/submit-plugin.mjs` fills automatically.*
 
 ## Demo / reviewer account (no MFA)
 

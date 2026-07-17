@@ -90,7 +90,8 @@ You can run your own relay so nothing depends on the hosted instance.
 ```
 server/    Vercel functions: OAuth + MCP endpoint + relay        (deploy this)
 agent/     apple-notes-agent — the npm-published Mac CLI          (users npx this)
-kit/       Puppeteer script that registers the ChatGPT connector  (optional automation)
+kit/       Browser automations: register the dev-mode connector AND
+           fill the OpenAI directory submission (see kit/README.md)
 supabase/  schema.sql for self-hosting the storage
 test/      end-to-end OAuth + MCP integration test
 ```

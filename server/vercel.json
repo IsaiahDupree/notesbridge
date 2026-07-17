@@ -8,6 +8,7 @@
     { "source": "/oauth/authorize", "destination": "/authorize.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/support", "destination": "/support.html" },
+    { "source": "/terms", "destination": "/terms.html" },
     { "source": "/verify", "destination": "/api/verify" },
     { "source": "/.well-known/security.txt", "destination": "/security.txt" },
     { "source": "/mcp", "destination": "/api/mcp" }

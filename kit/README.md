@@ -1,133 +1,80 @@
-# NotesBridge → ChatGPT Connector Registration Kit
+# NotesBridge automation kit
 
-Registers the NotesBridge custom MCP connector in ChatGPT using the persistent
-agent Chrome profile (chrome-bridge, CDP on `127.0.0.1:9222`).
+Browser automations that register and submit the NotesBridge connector to
+ChatGPT, so you don't have to click through the flows by hand. Both drive the
+persistent **chrome-bridge** agent Chrome over CDP (`127.0.0.1:9222`) using
+`puppeteer-core`, and both are **defensive**: every step screenshots to
+`screenshots/`, and anything that can't be automated is printed as an explicit
+"do this" instruction while the script waits or exits cleanly.
 
-ChatGPT renamed **Connectors → Plugins** (2026). Custom MCP servers are added
-through the developer-mode "New App" form. This kit reaches that form directly
-via a deep link (`.../plugins#settings/Connectors?create-connector=true`), fills
-Name / Description / Server URL, lets ChatGPT auto-discover the OAuth settings
-from the server's `/.well-known` metadata, submits, then clicks
-**"Sign in with NotesBridge"** and completes the OAuth popup (sign in + Allow).
-Finally it verifies **NotesBridge** appears in the Plugins list and screenshots
-the proof.
+| Script | What it does |
+|--------|--------------|
+| [`register-connector.mjs`](./register-connector.mjs) | Adds NotesBridge as a **developer-mode connector** in your own ChatGPT (Settings → Plugins → Create → OAuth → Allow). Idempotent. Use this to try the connector yourself today — no review needed. |
+| [`submit-plugin.mjs`](./submit-plugin.mjs) | Fills the **public directory submission** at platform.openai.com (Create plugin → With MCP → the multi-section form) from [`submission.config.json`](./submission.config.json). Stops before "Submit for review". |
 
-Developer mode is an **account-level** setting (Settings → Security and login →
-"Developer mode") and is assumed already ON — the deep link needs it. The kit no
-longer navigates settings or toggles anything.
-
-The run is **idempotent**: if NotesBridge is already in the Plugins list, it
-verifies and exits without creating a duplicate.
-
-## Prerequisites
-
-- macOS with Google Chrome and the chrome-bridge agent profile
-  (`/Users/isaiahdupree/Documents/Chrome/chrome-bridge/`). The script
-  auto-launches `chrome-launcher.sh agent` if port 9222 is not responding.
-- The Chrome agent profile logged in to ChatGPT (Plus, developer mode ON). If
-  not logged in, the script prints instructions and polls until you do.
-- NotesBridge server deployed and healthy: `GET {NB_SERVER}/api/health` must
-  return `redisConfigured: true`, `redisOk: true`, `jwtSecretSet: true`.
-- Node 18+ (built-in `fetch`).
-
-Install:
+## Setup
 
 ```bash
-cd /Users/isaiahdupree/Software/notesbridge/kit
-npm install          # puppeteer-core only
+cd kit
+npm install            # puppeteer-core only
 ```
 
-## Env vars
+Prerequisites for both:
+- macOS with the chrome-bridge agent Chrome. If CDP isn't up on `:9222`, the
+  scripts launch `chrome-launcher.sh agent` automatically.
+- That Chrome logged in to the relevant site (ChatGPT and/or platform.openai.com).
+  If not, the scripts print instructions and poll until you log in.
 
-Read from the environment first, falling back to
-`/Users/isaiahdupree/Software/notesbridge/.env.local`:
+Config/secrets: `submission.config.json` holds the listing values (edit to reuse
+for another plugin). The reviewer demo **password is never stored here** — it's
+read from `../.env.local` by the env-var name in the config (`DEMO_PASSWORD`).
 
-| Var | Meaning |
-|-----|---------|
-| `NB_SERVER` | NotesBridge server base URL (e.g. `https://notesbridge.vercel.app`) |
-| `NB_EMAIL` | NotesBridge account email (used in the OAuth popup) |
-| `NB_PASSWORD` | NotesBridge account password |
-
-Flags:
-
-| Flag | Effect |
-|------|--------|
-| `PREFLIGHT_ONLY=1` | Health check + CDP connect + ChatGPT login-state detection + `01-chatgpt-state.png`, then exit. Never touches settings. |
-| `CHAT_TEST=1` | After registration, open a chat, ask "Use NotesBridge to list my Apple Notes folders", screenshot the reply. **Requires the Mac agent running AND Apple Notes automation approved** (see below). |
-
-## How to run
+## 1. Register the dev-mode connector
 
 ```bash
-cd /Users/isaiahdupree/Software/notesbridge/kit
-
-# 1. Safe dry run (recommended first)
-PREFLIGHT_ONLY=1 node register-connector.mjs
-
-# 2. Full registration (idempotent — safe to re-run)
-node register-connector.mjs
-
-# 3. Full registration + end-to-end chat test
-CHAT_TEST=1 node register-connector.mjs
+node register-connector.mjs                 # create the connector via OAuth
+PREFLIGHT_ONLY=1 node register-connector.mjs # health + login check only
+CHAT_TEST=1 node register-connector.mjs      # then run a live "list my folders" prompt
 ```
 
-Whenever a UI step cannot be automated (ChatGPT's DOM churns), the script
-screenshots `NN-<step>-FAILED.png`, prints exactly what to click manually, then
-polls every 5s for the expected result and resumes automatically.
+Idempotent — if NotesBridge is already in your Plugins list it verifies and
+exits. See screenshots `01…`–`19…`.
 
-## The Mac agent (the other half)
-
-The connector only does something when your Mac agent is paired and running —
-it's what actually touches Apple Notes.
+## 2. Submit to the OpenAI directory
 
 ```bash
-cd /Users/isaiahdupree/Software/notesbridge
-# one-time pairing (generate a code on the NotesBridge site or via the API):
-node agent/cli.mjs pair <CODE>
-# then leave this running:
-node agent/cli.mjs run
+node submit-plugin.mjs                        # fill the form, STOP before submit
+DRAFT_URL="https://platform.openai.com/plugins/edit/…" node submit-plugin.mjs  # resume a draft
+SUBMIT=1 node submit-plugin.mjs               # also click "Submit for review"
 ```
 
-**Apple Notes permission (one-time):** the first time the agent runs a Notes
-action, macOS shows a "Terminal wants to control Notes" prompt — click **OK**.
-Until you approve it, note operations from ChatGPT time out with
-"timed out on the Mac". Grant/verify at:
-System Settings → Privacy & Security → Automation → (your terminal) → Notes.
+It walks the form: **Create plugin → "With MCP" → the "Create new plugin" dialog
+(Standard = same MCP URL for every user) → Continue →** an editor with sections
+**Info · MCP · Skills · Prompts · Testing · Global · Submit**. You advance with
+the **Continue** button at the bottom of each section (the top tabs don't switch).
+The App Info section is fully automated (name, subtitle [≤30 chars], description,
+Category and Developer Identity comboboxes, author, all four URLs, icon uploads);
+later sections are filled best-effort — watch the first run.
 
-## Expected screenshots (`kit/screenshots/`)
+### Two things only you can do (the script flags both)
 
-Numbered in run order; exact numbers shift if fallback shots occur.
+1. **Developer identity verification.** platform.openai.com → Plugins → Create
+   plugin → With MCP → Continue on the identity dialog → finish (business/developer
+   tier). Until then the create form is gated and the script exits with instructions.
+2. **A demo recording.** OpenAI marks "Demo Recording URL" required. Record a
+   screen video of the plugin working, host it (YouTube/Loom/…), and put the URL
+   in `submission.config.json` → `info.demoRecordingUrl`.
 
-| Screenshot | Shows |
-|------------|-------|
-| `01-chatgpt-state.png` | chatgpt.com after load (login-state evidence) |
-| `NN-create-form.png` | Empty "New App" create form |
-| `NN-create-form-filled.png` | Name / Description / Server URL filled, OAuth discovered |
-| `NN-after-create.png` | "Add NotesBridge to ChatGPT" modal (Sign in button) |
-| `NN-oauth-page.png` | NotesBridge OAuth popup (login view) |
-| `NN-oauth-consent.png` | Consent view before clicking Allow |
-| `NN-connector-verified.png` | Plugins list showing NotesBridge (proof) |
-| `NN-chat-test-reply.png` | (CHAT_TEST=1) assistant reply in the chat |
-| `NN-<step>-FAILED.png` | Any step that needed manual help |
+The reviewer demo credentials (`reviewer@notesbridge.demo` + `DEMO_PASSWORD`) are
+the important field — reviewers use them to exercise all tools 24/7 with no Mac
+(the server's demo mode). Paste-ready listing copy also lives in
+[`../LISTING.md`](../LISTING.md); the end-to-end walkthrough is in
+[`../SUBMISSION.md`](../SUBMISSION.md).
 
-## Troubleshooting
+## Notes
 
-- **Preflight fails** — the script prints which flag is false.
-  `redisConfigured`/`redisOk` → the server's storage env vars
-  (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`) are missing/wrong;
-  `jwtSecretSet` → set `JWT_SECRET`; then `npx vercel --yes --prod` and re-run.
-- **CDP not responding / Chrome won't start** — run
-  `bash /Users/isaiahdupree/Documents/Chrome/chrome-bridge/chrome-launcher.sh agent`
-  yourself, then `curl http://127.0.0.1:9222/json/version`.
-- **Stuck on "not logged in"** — the script first tries the "Welcome back"
-  one-click account tile; if that fails, log in to ChatGPT inside the agent
-  Chrome window. It polls every 5s with no timeout and resumes.
-- **Create form doesn't open** — Developer mode must be ON at the account level
-  (Settings → Security and login → Developer mode). Then re-run, or open the
-  deep link printed in the manual instructions.
-- **OAuth window never opens** — allow popups for chatgpt.com; the script polls
-  `browser.targets()` for a page on the `NB_SERVER` origin, then resumes.
-- **Sign-in error in OAuth popup** — the script retries with "Create account &
-  continue". If both fail, check `NB_EMAIL`/`NB_PASSWORD` and the server logs.
-- **Connector missing at verification** — the script polls up to 5 extra
-  minutes, then exits 1. Check Settings → Plugins manually and re-run;
-  the run is idempotent so re-running is safe.
+- Screenshots for every step are written to `screenshots/` — send them along if a
+  step needed manual help so the selectors can be tightened.
+- ChatGPT / platform.openai.com DOM churns; the scripts use text/label matching
+  and print exactly what to set for anything they can't find, so a partial run is
+  still useful.
