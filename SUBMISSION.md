@@ -74,6 +74,23 @@ connector keeps working exactly as it does today for the owner and anyone who
 creates an account on the dashboard and pairs their own Mac — the submission
 only affects public discoverability.
 
+## Automation
+
+`kit/submit-plugin.mjs` drives the submission form in the agent Chrome (CDP :9222):
+it opens Create plugin → With MCP, fills every field from the values above, runs
+Scan Tools, and **stops before "Submit for review"** for you to eyeball. Re-run
+with `SUBMIT=1` to also click submit.
+
+```bash
+cd kit && node submit-plugin.mjs        # fills the form, stops before submit
+SUBMIT=1 node submit-plugin.mjs         # also clicks Submit for review
+```
+
+It requires the identity gate (step 1) to be cleared first — if it isn't, the
+script prints instructions and waits, then continues automatically once you've
+verified. (Field selectors are best-effort since the form is gated; watch the
+first run — it prints exactly what to set for anything it can't fill.)
+
 ## Re-verify before submitting
 
 ```bash
