@@ -12,6 +12,7 @@ import { NOTES_WIDGET_HTML, WIDGET_MIME } from './lib/widget.js';
 import { redis } from './lib/redis.js';
 import { waitForJob } from './lib/relay.js';
 import { demoExec } from './lib/demoStore.js';
+import { registerDevice, listDevices, revokeDevice, revokeAllDevices, currentEpoch } from './lib/agentauth.js';
 
 // ---- auth: JWT ----
 test('JWT round-trips and carries claims', () => {
@@ -129,6 +130,29 @@ test('demoExec writes are isolated per user', async () => {
   await demoExec('demoX', 'createNote', { title: 'X-secret', body: 'x' });
   const y = await demoExec('demoY', 'searchNotes', { query: 'X-secret' });
   assert.equal(y.results.length, 0); // user Y never sees user X's note
+});
+
+// ---- agent device registry + revocation ----
+test('device register/list/revoke lifecycle', async () => {
+  const u = 'usr_devtest';
+  await registerDevice(u, 'dev_a', "Isaiah's MacBook");
+  await registerDevice(u, 'dev_b', 'Studio');
+  let list = await listDevices(u);
+  assert.equal(list.length, 2);
+  assert.ok(list.find((d) => d.jti === 'dev_a' && d.label === "Isaiah's MacBook"));
+  await revokeDevice(u, 'dev_a');
+  list = await listDevices(u);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].jti, 'dev_b');
+});
+test('revokeAllDevices clears the list and bumps the epoch', async () => {
+  const u = 'usr_epochtest';
+  assert.equal(await currentEpoch(u), 0);
+  await registerDevice(u, 'dev_x', 'X');
+  const n = await revokeAllDevices(u);
+  assert.equal(n, 1);
+  assert.equal((await listDevices(u)).length, 0);
+  assert.equal(await currentEpoch(u), 1); // any token issued at epoch < 1 is now revoked
 });
 
 // ---- widget: no injectable inline handler, escapes single quotes ----

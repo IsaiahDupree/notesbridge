@@ -1,11 +1,11 @@
-import { requireAuth } from '../../lib/auth.js';
+import { requireAgent } from '../../lib/agentauth.js';
 import { pushResult } from '../../lib/relay.js';
 import { readBody, methodGuard } from '../../lib/http.js';
 import { redis } from '../../lib/redis.js';
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, 'POST')) return;
-  const agent = requireAuth(req, res, 'agent');
+  const agent = await requireAgent(req, res);
   if (!agent) return;
   const { jobId, ok, result, error } = readBody(req);
   if (!jobId) return res.status(400).json({ error: 'jobId required' });

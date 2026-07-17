@@ -6,7 +6,7 @@
 import {
   readFileSync, writeFileSync, chmodSync, mkdirSync, rmSync, existsSync, realpathSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -149,7 +149,9 @@ async function cmdPair(code, server) {
   }
   let res;
   try {
-    res = await api(server, '/api/pair/claim', { method: 'POST', body: { code } });
+    // Send this Mac's hostname as a label so it's identifiable in the dashboard's
+    // paired-devices list (used only for display).
+    res = await api(server, '/api/pair/claim', { method: 'POST', body: { code, label: hostname() } });
   } catch (e) {
     console.error(`Could not reach ${server}: ${e.message}`);
     process.exit(1);

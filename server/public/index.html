@@ -140,6 +140,13 @@
   .prompt .code{flex:1; min-width:0; background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; font-size:14px; color:#cbd5e6; overflow-x:auto; white-space:nowrap;}
   .prompt .code em{color:var(--faint); font-style:italic;}
 
+  .devlist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+  .devlist li{display:flex; align-items:center; gap:12px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
+  .devlist .dinfo{flex:1; min-width:0;}
+  .devlist .dname{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .devlist .dmeta{color:var(--muted); font-size:12px;}
+  .devlist .remove{background:none; border:1px solid var(--border); color:var(--bad); border-radius:8px; padding:5px 10px; font-size:12px; font-weight:600; cursor:pointer;}
+  .devlist .remove:hover{border-color:var(--bad);}
   .footlinks{display:flex; justify-content:center; gap:16px; margin-top:24px; font-size:13px;}
   .footlinks button{background:none; color:var(--muted); border:none; font-weight:500; font-size:13px;}
   .footlinks button:hover{color:var(--text); text-decoration:underline;}
@@ -303,6 +310,15 @@
           <button class="copy" data-copy="Create a note titled Meeting notes with today's action items" onclick="copyText(this)" aria-label="Copy example prompt">Copy</button>
         </div>
         <p class="note" style="margin-top:12px">Your Mac must be awake with the agent running for requests to work. Write actions are always confirmed inside ChatGPT before they run.</p>
+      </div>
+    </div>
+
+    <div class="card" id="devicesCard" style="display:none">
+      <div class="head"><h2>Paired Macs</h2></div>
+      <div class="body">
+        <p class="desc">Macs currently linked to your account. Remove any you don't recognize — that Mac's agent will stop working immediately.</p>
+        <ul id="deviceList" class="devlist"></ul>
+        <button class="btn ghost" id="unpairAll" onclick="revokeDeviceAction(null, true)" style="margin-top:10px">Unpair all Macs</button>
       </div>
     </div>
 
@@ -497,7 +513,48 @@
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(pollStatus, 4000);
       checkVerified();
+      loadDevices();
     }
+  }
+
+  /* ---------- paired devices ---------- */
+  function timeAgo(ms){
+    if (!ms) return '';
+    const s = Math.floor((Date.now()-ms)/1000);
+    if (s < 90) return 'just now';
+    const m = Math.floor(s/60); if (m < 60) return m+'m ago';
+    const h = Math.floor(m/60); if (h < 24) return h+'h ago';
+    return Math.floor(h/24)+'d ago';
+  }
+  async function loadDevices(){
+    try {
+      const { devices } = await api('/api/agent/devices');
+      const card = $('devicesCard'), list = $('deviceList');
+      if (!devices || !devices.length){ card.style.display = 'none'; return; }
+      card.style.display = '';
+      list.textContent = '';
+      for (const d of devices){
+        const li = document.createElement('li');
+        const info = document.createElement('div'); info.className = 'dinfo';
+        const name = document.createElement('div'); name.className = 'dname'; name.textContent = d.label || 'Mac';
+        const meta = document.createElement('div'); meta.className = 'dmeta';
+        const paired = d.pairedAt ? new Date(d.pairedAt).toLocaleDateString() : '';
+        meta.textContent = (paired ? 'Paired '+paired : '') + (d.lastSeen ? ' · last seen '+timeAgo(d.lastSeen) : '');
+        info.appendChild(name); info.appendChild(meta);
+        const btn = document.createElement('button'); btn.className = 'remove'; btn.textContent = 'Remove';
+        btn.onclick = () => revokeDeviceAction(d.jti, false);
+        li.appendChild(info); li.appendChild(btn);
+        list.appendChild(li);
+      }
+    } catch { $('devicesCard').style.display = 'none'; }
+  }
+  async function revokeDeviceAction(jti, all){
+    const msg = all ? 'Unpair ALL Macs? Each will stop working until you pair it again.' : 'Remove this Mac? Its agent will stop working until you pair it again.';
+    if (!window.confirm(msg)) return;
+    try {
+      await api('/api/agent/revoke', { method:'POST', body: JSON.stringify(all ? { all:true } : { jti }) });
+      loadDevices();
+    } catch (e) { alert('Could not revoke: ' + (e.message || 'error')); }
   }
 
   /* ---------- email verification ---------- */

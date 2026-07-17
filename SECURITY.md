@@ -35,7 +35,7 @@ Include: affected component, a clear description, reproduction steps / PoC, and 
 
 These are understood trade-offs, not undiscovered bugs — documented for transparency:
 
-- **Agent tokens are long-lived (1 year) and not individually revocable.** A token is only usable to relay jobs to the account it was paired to; the practical mitigation for a lost/stolen Mac token today is rotating `JWT_SECRET` (which re-pairs everyone) or generating a new pairing. A per-user token-epoch revocation path is a planned enhancement.
+- **Agent tokens are long-lived (1 year) but revocable.** Each carries a per-device id (`jti`) and the user's revocation epoch. From the dashboard's "Paired Macs" list a user can remove one device (deletes its `jti`) or unpair all (bumps the epoch, invalidating every outstanding token — including legacy ones). Revoked tokens are rejected on their next request.
 - **Refresh tokens rotate on use but there is no reuse-family detection** (RFC 9700). A stolen-and-used refresh token hijacks the chain; the victim's next refresh then fails, surfacing the compromise.
 - **Open Dynamic Client Registration** (required by MCP clients like ChatGPT) means any party can register a client; the consent screen shows the redirect host so users can spot a client that isn't first-party. This is standard OAuth and requires user interaction to abuse.
 - **Fixed-window rate limiting** permits up to ~2× the nominal limit across a window boundary. Acceptable for the abuse-prevention it provides.

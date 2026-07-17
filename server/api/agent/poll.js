@@ -1,4 +1,4 @@
-import { requireAuth } from '../../lib/auth.js';
+import { requireAgent, touchDevice } from '../../lib/agentauth.js';
 import { markAgentOnline, waitForJob } from '../../lib/relay.js';
 
 // Long-poll job delivery. With ?wait=<sec> the server holds the request open and
@@ -9,9 +9,10 @@ import { markAgentOnline, waitForJob } from '../../lib/relay.js';
 const MAX_WAIT_SEC = 25;
 
 export default async function handler(req, res) {
-  const agent = requireAuth(req, res, 'agent');
+  const agent = await requireAgent(req, res);
   if (!agent) return;
   await markAgentOnline(agent.sub);
+  await touchDevice(agent.jti); // update the device's lastSeen (no-op for legacy tokens)
   const waitSec = Math.min(Math.max(Number(req.query.wait) || 0, 0), MAX_WAIT_SEC);
   const job = await waitForJob(agent.sub, waitSec);
   res.json({ job: job || null });
