@@ -8,6 +8,7 @@
     { "source": "/oauth/authorize", "destination": "/authorize.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/support", "destination": "/support.html" },
+    { "source": "/verify", "destination": "/api/verify" },
     { "source": "/mcp", "destination": "/api/mcp" }
   ],
   "functions": {

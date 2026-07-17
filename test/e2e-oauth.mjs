@@ -177,5 +177,25 @@ for (let i = 0; i < 11; i++) {
 }
 ok('rate limit fires (429 on claim)', sawLimit && non429 === 0, sawLimit ? '429 observed' : 'no 429 after 11 attempts');
 
+// ---------------------------------------------------------------- email verification
+
+// Uses the existing (grandfathered) main account + demo account so it never
+// sends real email or trips the signup rate limit.
+const me = await fetch(BASE + '/api/me', { headers: { authorization: `Bearer ${SESSION}` } }).then((r) => r.json()).catch(() => ({}));
+ok('/api/me reports verification state', typeof me.verified === 'boolean' && typeof me.emailVerificationEnabled === 'boolean', JSON.stringify(me));
+ok('grandfathered account is verified (not blocked)', me.verified === true);
+
+const badVerify = await fetch(BASE + '/verify?token=definitely-not-a-real-token');
+ok('/verify rejects a bad token', badVerify.status === 400);
+
+const resend = await post('/api/resend-verification', {}, { authorization: `Bearer ${SESSION}` });
+ok('resend on a verified account is a no-op (no email sent)', resend.body.sent === false && resend.body.alreadyVerified === true, JSON.stringify(resend.body));
+
+if (DEMO_PASSWORD) {
+  const dm = await post('/api/login', { email: DEMO_EMAIL, password: DEMO_PASSWORD });
+  const dme = await fetch(BASE + '/api/me', { headers: { authorization: `Bearer ${dm.body.token}` } }).then((r) => r.json()).catch(() => ({}));
+  ok('demo account is exempt from verification', dme.demo === true && dme.verified === true, JSON.stringify(dme));
+}
+
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

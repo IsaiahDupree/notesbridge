@@ -211,6 +211,14 @@
       <span><b>Server storage isn't fully configured yet.</b> Pairing and connections may not persist. If you host NotesBridge yourself, set up Redis (see the project setup docs).</span>
     </div>
 
+    <div class="banner hidden" id="verifyBanner" role="status">
+      <span aria-hidden="true">&#9993;</span>
+      <span><b>Verify your email.</b> We sent a link to <span id="verifyEmail"></span>. Didn't get it?
+        <button type="button" id="resendVerify" onclick="resendVerification()" style="background:none;border:none;color:var(--accent);font-weight:600;cursor:pointer;padding:0;text-decoration:underline;">Resend</button>
+        <span id="resendMsg" style="color:var(--muted);"></span>
+      </span>
+    </div>
+
     <div class="progress">
       <div class="track"><div class="fill" id="progFill"></div></div>
       <ol class="steps" id="steps">
@@ -488,7 +496,28 @@
       pollStatus();
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(pollStatus, 4000);
+      checkVerified();
     }
+  }
+
+  /* ---------- email verification ---------- */
+  async function checkVerified(){
+    try {
+      const me = await api('/api/me');
+      const show = me.emailVerificationEnabled && !me.verified && !me.demo;
+      $('verifyBanner').classList.toggle('hidden', !show);
+      if (show) $('verifyEmail').textContent = me.email || 'your email';
+    } catch { /* leave banner hidden on error */ }
+  }
+  async function resendVerification(){
+    const btn = $('resendVerify'), msg = $('resendMsg');
+    btn.disabled = true; msg.textContent = ' sending…';
+    try {
+      const r = await api('/api/resend-verification', { method:'POST' });
+      msg.textContent = r.sent ? ' sent ✓' : (r.alreadyVerified ? ' already verified ✓' : ' could not send');
+      if (r.alreadyVerified) $('verifyBanner').classList.add('hidden');
+    } catch { msg.textContent = ' could not send'; }
+    finally { setTimeout(()=>{ btn.disabled = false; }, 4000); }
   }
 
   setMode('login');
