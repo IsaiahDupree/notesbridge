@@ -1,24 +1,40 @@
-# NotesBridge automation kit
+# MCP connector automation kit
 
-Browser automations that register and submit the NotesBridge connector to
-ChatGPT, so you don't have to click through the flows by hand. Both drive the
-persistent **chrome-bridge** agent Chrome over CDP (`127.0.0.1:9222`) using
-`puppeteer-core`, and both are **defensive**: every step screenshots to
-`screenshots/`, and anything that can't be automated is printed as an explicit
-"do this" instruction while the script waits or exits cleanly.
+Browser automations that register and submit an MCP connector to **both**
+directories — the **OpenAI** plugin directory (platform.openai.com) and the
+**Anthropic (Claude) Connectors Directory** (claude.ai) — plus the reusable
+primitives behind them, so you don't click through the flows by hand. Everything
+drives the persistent **chrome-bridge** agent Chrome over CDP
+(`127.0.0.1:9222`) with `puppeteer-core`, and is **defensive**: every step
+screenshots to `screenshots/`, anything un-automatable is printed as an explicit
+"do this" instruction, and the owner's legal attestations + final submit are
+always left to a human.
 
-| Script | What it does |
+The same MCP server satisfies both directories (MCP is the shared protocol) — only
+the listing config differs.
+
+### OpenAI directory
+| File | What it does |
 |--------|--------------|
-| [`register-connector.mjs`](./register-connector.mjs) | Adds NotesBridge as a **developer-mode connector** in your own ChatGPT (Settings → Plugins → Create → OAuth → Allow). Idempotent. Use this to try the connector yourself today — no review needed. |
-| [`submit-plugin.mjs`](./submit-plugin.mjs) | Fills the **public directory submission** at platform.openai.com (Create plugin → With MCP → the multi-section form) from [`submission.config.json`](./submission.config.json). Stops before "Submit for review". |
-| [`lib/openai-form.mjs`](./lib/openai-form.mjs) | **Reusable primitives** for driving the submission form (Radix-select auth, React inputs, the OAuth Scan-Tools flow, domain verification, tool-justification fills, stale-session reload). Import these to submit **any** MCP plugin, not just NotesBridge. |
-| [`SUBMIT-FLOW.md`](./SUBMIT-FLOW.md) | The **field-by-field map** of the real 7-section form + every gotcha, verified by actually submitting NotesBridge v1.0.0. Read this first when submitting a new plugin. |
+| [`register-connector.mjs`](./register-connector.mjs) | Adds the connector as a **developer-mode connector** in your own ChatGPT (Settings → Plugins → Create → OAuth → Allow). Idempotent — try it today, no review. |
+| [`submit-plugin.mjs`](./submit-plugin.mjs) | Fills the **directory submission** at platform.openai.com from [`submission.config.json`](./submission.config.json). Stops before "Submit for review". |
+| [`lib/openai-form.mjs`](./lib/openai-form.mjs) | **Reusable primitives** — Radix-select auth, React inputs, the OAuth Scan-Tools flow, domain verification, tool-justification fills, stale-session reload. |
+| [`SUBMIT-FLOW.md`](./SUBMIT-FLOW.md) | Field-by-field map of the real 7-section form + every gotcha, verified by submitting NotesBridge v1.0.0. |
 
-**Reusing this for another plugin (e.g. MediaPoster):** point
-[`submission.config.json`](./submission.config.json) at the new MCP URL + listing
-copy + prompts + 5 positive / 3 negative test cases + release notes, make sure the
-server meets the checklist in [`SUBMIT-FLOW.md`](./SUBMIT-FLOW.md#reuse-checklist-for-the-next-plugin-eg-mediaposter),
-then drive the form with the `lib/openai-form.mjs` helpers.
+### Anthropic (Claude) directory
+| File | What it does |
+|--------|--------------|
+| [`lib/claude-form.mjs`](./lib/claude-form.mjs) | Primitives + step sequence for the 11-step portal at `claude.ai/admin-settings/directory/submissions`. Re-uses the generic helpers from `openai-form.mjs`; portal-specific selectors are `TODO(portal)` pending Team/Enterprise access. Includes a `checkAccess()` preflight. |
+| [`SUBMIT-FLOW-ANTHROPIC.md`](./SUBMIT-FLOW-ANTHROPIC.md) | Field-by-field map of the 11-step portal + requirements + the **Team/Enterprise org gate**. |
+| [`anthropic.config.json`](./anthropic.config.json) | NotesBridge's paste-ready Anthropic listing (name, ≤55-char tagline, ≤2000-char description, categories, reviewer test steps, etc.). |
+
+**Reusing for another connector (e.g. MediaSuite):** point the config(s) at the
+new MCP URL + listing copy, make sure the server meets the checklists in the two
+SUBMIT-FLOW docs (OAuth + complete tool annotations + privacy policy + reviewer
+demo account), then drive each form with its helpers. The OpenAI form also wants
+a demo video + 5 positive / 3 negative test cases; the Anthropic portal wants
+written test-account instructions instead and requires a **Team/Enterprise Claude
+org** to reach.
 
 ## Setup
 
