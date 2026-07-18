@@ -15,7 +15,7 @@
     "supportUrl": "https://notesbridge.vercel.app/support",
     "privacyUrl": "https://notesbridge.vercel.app/privacy",
     "termsUrl": "https://notesbridge.vercel.app/terms",
-    "demoRecordingUrl": "https://notesbridge.vercel.app/demo.mp4",
+    "demoRecordingUrl": "https://youtu.be/fvytZG8DC80",
     "demoRecordingNote": "REQUIRED by OpenAI. A recorded demo (NotesBridge listing folders, creating a note, reading it back in ChatGPT) is hosted here. Swap for a YouTube link if preferred.",
     "directoryIcon": "../assets/icon-512.png",
     "composerIcon": "../assets/icon-512.png",

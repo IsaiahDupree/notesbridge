@@ -57,7 +57,7 @@ export function buildServer(userId, { demo = false } = {}) {
       title: 'Search Apple Notes',
       description: "Search the user's Apple Notes by keyword. Returns matching notes with ids; use fetch to read one.",
       inputSchema: { query: z.string() },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: cardMeta,
     },
     async ({ query }) => {
@@ -77,7 +77,7 @@ export function buildServer(userId, { demo = false } = {}) {
       title: 'Fetch a note',
       description: 'Fetch the full content of a note by id (from search results).',
       inputSchema: { id: z.string() },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: cardMeta,
     },
     async ({ id }) => {
@@ -99,7 +99,7 @@ export function buildServer(userId, { demo = false } = {}) {
 
   server.registerTool(
     'list_folders',
-    { title: 'List Notes folders', description: 'List all Apple Notes folders with note counts.', inputSchema: {}, annotations: { readOnlyHint: true }, _meta: cardMeta },
+    { title: 'List Notes folders', description: 'List all Apple Notes folders with note counts.', inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: cardMeta },
     async () => {
       try {
         const res = await exec('listFolders', {});
@@ -119,7 +119,7 @@ export function buildServer(userId, { demo = false } = {}) {
         folder: z.string().optional(),
         limit: z.number().int().min(1).max(100).optional(),
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: cardMeta,
     },
     async (args) => {
@@ -138,7 +138,7 @@ export function buildServer(userId, { demo = false } = {}) {
       title: 'Read a note',
       description: 'Read a note by id or (fuzzy) title.',
       inputSchema: { id: z.string().optional(), title: z.string().optional() },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: cardMeta,
     },
     async (args) => {
@@ -157,6 +157,7 @@ export function buildServer(userId, { demo = false } = {}) {
       title: 'Create a note',
       description: 'Create a new Apple Note. Title becomes the first line.',
       inputSchema: { title: z.string(), body: z.string(), folder: z.string().optional() },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     forward('createNote')
   );
@@ -167,6 +168,7 @@ export function buildServer(userId, { demo = false } = {}) {
       title: 'Append to a note',
       description: 'Append plain text to the end of an existing note.',
       inputSchema: { id: z.string(), text: z.string() },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     forward('appendToNote')
   );
@@ -177,7 +179,7 @@ export function buildServer(userId, { demo = false } = {}) {
       title: 'Rewrite a note',
       description: "Replace a note's entire content. WARNING: overwrites — read it first.",
       inputSchema: { id: z.string(), title: z.string(), body: z.string() },
-      annotations: { destructiveHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     forward('updateNote')
   );
