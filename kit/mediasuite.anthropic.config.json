@@ -50,16 +50,18 @@
     "conversationDataCollection": "none — the connector reads/writes only the user's own MediaSuite data; no conversation data is retained by the connector."
   },
   "reviewerTest": {
-    "note": "PENDING the demo workspace. Reviewers add MediaSuite as a custom connector, authorize the seeded demo account via OAuth, then run the prompts below against seeded sample media/clips/posts/stats.",
-    "status": "pending-demo-account",
+    "note": "Add MediaSuite as a custom connector and authorize via OAuth; on the connector's own consent page enter handle 'demo' and the mcp_ token. The demo user reads an ISOLATED seeded namespace (sample media, clips, published posts + stats-over-time, accounts, ideas) — no real user data is exposed. Verified end-to-end against the live server 2026-07-18 (npm run seed:demo provisions it).",
+    "handle": "demo",
+    "tokenEnvVar": "MEDIASUITE_DEMO_TOKEN",
+    "tokenLocation": "media-suite/.env.local (gitignored) — paste the token value into the portal at submission time",
     "prompts": [
       "List my media library",
       "What are my top posts?",
       "How have my views trended over the last month?",
-      "Plan a week of shorts from my media <id>",
-      "Add a content idea: repurpose the Q&A into a carousel"
+      "Plan a week of shorts from media dm1",
+      "Add a content idea: repurpose the podcast into a carousel"
     ],
-    "testedEveryTool": false
+    "testedEveryTool": true
   },
   "compliance": {
     "note": "Seven mandatory acknowledgments + Anthropic Software Directory Terms & Policy — the OWNER's legal attestations; automation stops before them.",

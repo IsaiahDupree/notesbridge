@@ -25,10 +25,10 @@
     "wellKnownPath": "/.well-known/openai-apps-challenge"
   },
   "reviewerDemo": {
-    "note": "PENDING the demo workspace (media-suite/CONNECTOR-PLAN.md gap 3). Reviewers authorize the seeded demo account via OAuth; all read tools return seeded sample data.",
-    "status": "pending-demo-account",
-    "email": "TBD",
-    "passwordEnvVar": "MEDIASUITE_DEMO_PASSWORD"
+    "note": "MediaSuite's OAuth consent page authenticates with a HANDLE + mcp_ token (not email/password). Reviewers: add the connector, authorize, and on the consent page enter handle 'demo' + the token. The demo user reads an isolated seeded namespace; no real data is exposed. Verified end-to-end 2026-07-18. Re-seed with `npm run seed:demo`.",
+    "handle": "demo",
+    "tokenEnvVar": "MEDIASUITE_DEMO_TOKEN",
+    "tokenLocation": "media-suite/.env.local (gitignored) — paste at submission time"
   },
   "prompts": [
     "What are my top-performing posts?",
