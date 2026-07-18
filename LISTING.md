@@ -62,6 +62,23 @@ Sign in as the reviewer account, add the connector via OAuth, then:
 5. **"List the notes in my Work folder"** → `list_notes` →
    `{ "notes": [ { "id": "demo-3", "title": "Q3 planning", "folder": "Work" } ] }`
 
+## Negative test cases (exactly 3 — prompts where NotesBridge should NOT trigger)
+
+1. **General note-taking advice** — *"What's a good method for taking meeting
+   notes?"* — abstract question, no action on the user's own Apple Notes.
+2. **A different app** — *"Add this to my Notion workspace."* — NotesBridge only
+   works with Apple Notes, not Notion/Evernote/Keep.
+3. **A reminders/calendar action** — *"Set a reminder to call the dentist
+   tomorrow at 9am."* — NotesBridge creates/edits notes only, not reminders.
+
+## Release notes (first release)
+
+> Initial release. NotesBridge connects ChatGPT to your Apple Notes through a
+> small open-source agent that runs on your own Mac — search and read any note,
+> create new ones, append to lists, or rewrite drafts. Every write is confirmed
+> by you before it happens. Your notes never live on our servers; the cloud
+> piece is only a stateless relay. Open source (MIT) and self-hostable.
+
 ## Tools declared (8)
 
 `search`, `fetch`, `list_folders`, `list_notes`, `get_note`, `create_note`,

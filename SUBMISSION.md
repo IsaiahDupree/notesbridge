@@ -15,6 +15,9 @@ connector review), what's already done, and what only the account owner can do.
 | Onboarding UX | ✅ live | 4-step wizard with live agent status at the root URL |
 | Apps SDK UI component | ✅ built & wired | `ui://widget/notes.html` on the 5 read tools (folders/notes/search/note cards). Protocol-verified live. **Renders only once the app is approved** — developer-mode connectors display tool output as text (confirmed empirically with both `text/html+skybridge` and `text/html;profile=mcp-app`). No effect on the working connector; e2e stays green. |
 | 512×512 icon | ✅ | `assets/icon-512.png` |
+| OAuth tool scan | ✅ live | Form "Scan Tools" completes the OAuth consent and discovers all 8 tools |
+| Domain verification | ✅ live | `/.well-known/openai-apps-challenge` (`server/api/challenge.js`) — form shows "Domain verified" |
+| Complete tool annotations | ✅ | All 8 tools declare readOnly/destructive/idempotent/openWorld hints (0 form warnings) |
 | Full e2e suite | ✅ 22 green checks | `node test/e2e-oauth.mjs` |
 
 ## Steps only the account owner can do
@@ -36,13 +39,35 @@ done by you.)*
    - Email: `reviewer@notesbridge.demo`
    - Password: the `DEMO_PASSWORD` value in `.env.local` (already created &
      verified — do not rotate it after submitting; reviewers use it)
-3. **Create the plugin & submit.** Back at Plugins → Create plugin → With MCP:
-   - Enter MCP Server URL `https://notesbridge.vercel.app/mcp`, Authentication
-     **OAuth**, then click **Scan Tools** (auto-discovers all 8).
-   - Fill name, logo (`assets/icon-512.png`), description, company URL, privacy
-     (`/privacy`) and support (`/support`) URLs, test prompts, demo credentials —
-     all paste-ready in **LISTING.md**.
-   - Click **Submit for review**.
+3. **Create the plugin & fill the form.** Back at Plugins → Create plugin →
+   With MCP → Standard → Continue. The editor has **seven** sections, advanced
+   by the bottom **Continue** button (not the top tabs). Verified end-to-end on
+   the live portal 2026-07-17:
+
+   1. **Info** — name, ≤30-char subtitle, description, Category + Developer
+      Identity (custom comboboxes), author, Website/Support/Privacy/Terms URLs,
+      Demo Recording URL (required — the YouTube link), two icon uploads. All
+      paste-ready in **LISTING.md**.
+   2. **MCP** — MCP Server URL `https://notesbridge.vercel.app/mcp`;
+      Authentication **OAuth** (auto-discovers config from our `/.well-known`
+      metadata); **Domain verification** — the form issues a token you must
+      serve at `/.well-known/openai-apps-challenge` (our `server/api/challenge.js`
+      already does this) then click **Verify Domain**; **Scan Tools** — opens an
+      "Authorize MCP" OAuth consent (sign in with the reviewer demo account,
+      Allow) and then discovers all 8 tools; **Tool justification** — one line
+      per annotation per tool (Read Only / Open World / Destructive) explaining
+      why it's accurate.
+   3. **Skills** — none; click **Skip**.
+   4. **Prompts** — up to 3 showcase prompts (list / search / create).
+   5. **Testing** — reviewer demo credentials (email + `DEMO_PASSWORD`), exactly
+      **5 positive** test cases (scenario / user prompt / tool / expected) and
+      exactly **3 negative** test cases (scenario + prompt where the app should
+      *not* trigger).
+   6. **Global** — English (US) translation is prefilled from Info; Allowed
+      Countries = Allow all.
+   7. **Submit** — Release Notes, then the policy-compliance checkboxes and the
+      mature-content radio (**the account owner's legal attestations**), which
+      enable **Submit for Review**.
 
 ## Directory listing copy
 
