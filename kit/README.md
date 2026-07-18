@@ -11,6 +11,14 @@ persistent **chrome-bridge** agent Chrome over CDP (`127.0.0.1:9222`) using
 |--------|--------------|
 | [`register-connector.mjs`](./register-connector.mjs) | Adds NotesBridge as a **developer-mode connector** in your own ChatGPT (Settings → Plugins → Create → OAuth → Allow). Idempotent. Use this to try the connector yourself today — no review needed. |
 | [`submit-plugin.mjs`](./submit-plugin.mjs) | Fills the **public directory submission** at platform.openai.com (Create plugin → With MCP → the multi-section form) from [`submission.config.json`](./submission.config.json). Stops before "Submit for review". |
+| [`lib/openai-form.mjs`](./lib/openai-form.mjs) | **Reusable primitives** for driving the submission form (Radix-select auth, React inputs, the OAuth Scan-Tools flow, domain verification, tool-justification fills, stale-session reload). Import these to submit **any** MCP plugin, not just NotesBridge. |
+| [`SUBMIT-FLOW.md`](./SUBMIT-FLOW.md) | The **field-by-field map** of the real 7-section form + every gotcha, verified by actually submitting NotesBridge v1.0.0. Read this first when submitting a new plugin. |
+
+**Reusing this for another plugin (e.g. MediaPoster):** point
+[`submission.config.json`](./submission.config.json) at the new MCP URL + listing
+copy + prompts + 5 positive / 3 negative test cases + release notes, make sure the
+server meets the checklist in [`SUBMIT-FLOW.md`](./SUBMIT-FLOW.md#reuse-checklist-for-the-next-plugin-eg-mediaposter),
+then drive the form with the `lib/openai-form.mjs` helpers.
 
 ## Setup
 
