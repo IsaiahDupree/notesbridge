@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.isaiahdupree/notesbridge",
+  "name": "io.github.IsaiahDupree/notesbridge",
   "description": "Search, read, and write your Apple Notes from ChatGPT/Claude via a local Mac agent + MCP relay.",
   "version": "1.3.0",
   "websiteUrl": "https://notesbridge.vercel.app",
