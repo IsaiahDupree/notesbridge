@@ -79,39 +79,21 @@ function findNoteById(app, id) {
 `;
 
 const SOURCES = {
-  searchNotes: `
+  searchNotes: FIND_NOTE + `
 function run(argv) {
-  var args = JSON.parse(argv[0]);
-  var query = String(args.query || '');
-  var limit = args.limit || 20;
-  var app = Application('Notes');
-  var results = [];
-  var seen = {};
-  try {
-    var byName = app.notes.whose({ name: { _contains: query } });
-    var n = Math.min(byName.length, limit);
-    for (var i = 0; i < n; i++) {
-      var id = byName[i].id();
-      if (!seen[id]) { seen[id] = true; results.push({ id: id, title: byName[i].name() }); }
-    }
-  } catch (e) {}
-  if (results.length < limit) {
-    // plaintext scan is one Apple Event per note — cap at 200 for perf
-    var q = query.toLowerCase();
-    var ids = app.notes.id();
-    var names = app.notes.name();
-    var cap = Math.min(ids.length, 200);
-    for (var j = 0; j < cap && results.length < limit; j++) {
-      if (seen[ids[j]]) continue;
-      var text = '';
-      try { text = String(app.notes[j].plaintext() || ''); } catch (e) { continue; }
-      if (text.toLowerCase().indexOf(q) !== -1) {
-        seen[ids[j]] = true;
-        results.push({ id: ids[j], title: names[j] });
-      }
-    }
-  }
-  return JSON.stringify({ results: results });
+ var args=JSON.parse(argv[0]), app=Application('Notes');
+ var q=args.query.toLowerCase(), ids=app.notes.id().sort();
+ var candidates=ids.filter(function(id){return !args.cursor || id>args.cursor;});
+ var results=[], skipped=[], last=null, scanned=0;
+ for(var i=0;i<candidates.length && scanned<50 && results.length<args.limit;i++){
+  var id=candidates[i];last=id;scanned++;
+  var note=findNoteById(app,id);
+  if(!note)throw new Error('Note changed during scan; retry');
+  if(note.passwordProtected()){skipped.push({id:id,reason:'password_protected'});continue;}
+  var title=note.name(), text=note.plaintext();
+  if((title+'\\n'+text).toLowerCase().indexOf(q)!==-1)results.push({id:id,title:title});
+ }
+ return JSON.stringify({results:results,scanned_notes:scanned,skipped:skipped,next_cursor:scanned<candidates.length?last:null,coverage:'Notes available through Apple Notes on this Mac; password-protected notes excluded'});
 }
 `,
 
@@ -139,6 +121,7 @@ function run(argv) {
   } else {
     throw new Error('id or title is required');
   }
+  if(note.passwordProtected()) throw new Error('Note is password protected; unlock it in Apple Notes');
   var folder = '';
   try { folder = note.container().name(); } catch (e) {}
   return JSON.stringify({ note: {
@@ -158,7 +141,7 @@ function run(argv) {
   var folders = app.folders();
   var out = [];
   for (var i = 0; i < folders.length; i++) {
-    try { out.push({ name: folders[i].name(), count: folders[i].notes.length }); } catch (e) {}
+    out.push({ id: folders[i].id(), name: folders[i].name(), count: folders[i].notes.length });
   }
   return JSON.stringify({ folders: out });
 }
@@ -175,10 +158,10 @@ function run(argv) {
   var found = false;
   for (var i = 0; i < folders.length; i++) {
     var fname = '';
-    try { fname = folders[i].name(); } catch (e) { continue; }
+    fname = folders[i].name();
     if (wanted && fname.toLowerCase() !== wanted) continue;
     found = true;
-    try {
+    {
       // three bulk Apple Events per folder instead of three per note
       var ids = folders[i].notes.id();
       var names = folders[i].notes.name();
@@ -191,14 +174,13 @@ function run(argv) {
           modified: mods[j] ? mods[j].toISOString() : null
         });
       }
-    } catch (e) {}
+    }
   }
   if (wanted && !found) throw new Error('Folder not found: ' + args.folder);
-  rows.sort(function (a, b) {
-    var am = a.modified || '', bm = b.modified || '';
-    return am > bm ? -1 : am < bm ? 1 : 0;
-  });
-  return JSON.stringify({ notes: rows.slice(0, limit) });
+  rows.sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});
+  var seen={};rows=rows.filter(function(r){if(seen[r.id])return false;seen[r.id]=true;return !args.cursor||r.id>args.cursor;});
+  var page=rows.slice(0,limit);
+  return JSON.stringify({notes:page,next_cursor:rows.length>limit?page[page.length-1].id:null,coverage:'Notes available through Apple Notes on this Mac'});
 }
 `,
 
@@ -253,6 +235,12 @@ function run(argv) {
 export async function runTool(tool, args = {}) {
   const source = SOURCES[tool];
   if (!source) throw new Error(`Unknown tool: ${tool}`);
+  if(tool==='listNotes'||tool==='searchNotes'){
+    args={...args,limit:args.limit===undefined?(tool==='listNotes'?30:20):args.limit};
+    if(!Number.isSafeInteger(args.limit)||args.limit<1||args.limit>100)throw new Error('limit must be an integer from 1 to 100');
+    if(args.cursor!==undefined && (typeof args.cursor!=='string'||!args.cursor.startsWith('x-coredata://')))throw new Error('Invalid cursor');
+  }
+  if(tool==='searchNotes' && (typeof args.query!=='string'||!args.query.trim()))throw new Error('query must not be empty');
   const payload = JSON.stringify(buildJxaArgs(tool, args));
   let stdout;
   try {
@@ -268,6 +256,6 @@ export async function runTool(tool, args = {}) {
   try {
     return JSON.parse(stdout);
   } catch {
-    throw new Error(`Bad JXA output for ${tool}: ${String(stdout).slice(0, 200)}`);
+    throw new Error(`Bad JXA output for ${tool}`);
   }
 }

@@ -12,8 +12,8 @@ export default async function handler(req, res) {
       redisOk = false;
     }
   }
-  res.json({
-    ok: true,
+  res.status(redisOk && process.env.JWT_SECRET ? 200 : 503).json({
+    ok: redisOk && !!process.env.JWT_SECRET,
     redisConfigured,
     redisOk,
     jwtSecretSet: !!process.env.JWT_SECRET,

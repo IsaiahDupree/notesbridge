@@ -9,14 +9,14 @@
 
 </div>
 
-NotesBridge is a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) connector that lets ChatGPT work with your **Apple Notes**. It never uploads your notes to a third party — every action runs on **your own Mac** through a tiny local agent. The cloud piece is only a stateless relay that shuttles requests between ChatGPT and your Mac.
+NotesBridge is a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) connector that lets ChatGPT work with your **Apple Notes**. Every Notes action runs on **your own Mac** through a local agent. Requested note content travels through the hosted relay to ChatGPT; job arguments and results are temporarily stored in the relay database.
 
 ```
   ChatGPT  ──OAuth──►  NotesBridge relay  ──job queue──►  apple-notes-agent  ──►  Apple Notes.app
  (connector)          (Vercel, stateless)   (your Mac, polls & executes)         (on your Mac)
 ```
 
-Your Mac is the only place your notes are ever read or written. The relay stores only short-lived job payloads and your account record; it never sees a note unless a job is in flight, and jobs expire in seconds.
+The agent accesses Apple Notes on your Mac. The relay stores account records and temporary job payloads/results; ChatGPT receives requested note content. Password-protected notes and attachment content are outside the verified read scope.
 
 ---
 
@@ -117,3 +117,7 @@ node --test agent/test-agent-unit.mjs
 ## License
 
 [MIT](./LICENSE) © Isaiah Dupree
+
+### Complete read coverage
+
+`list_notes` and `search` return `next_cursor`. Pass it back until null; an empty search page can still have a cursor. Listings use stable note-ID order. Search reports password-protected notes as skipped. Run `node test/live-all-notes.mjs` for a read-only local coverage test after granting Notes automation. Current verification status is in [the report](docs/reports/2026-09-30-notesbridge-verification.md).

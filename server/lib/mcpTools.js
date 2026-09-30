@@ -55,16 +55,16 @@ export function buildServer(userId, { demo = false } = {}) {
     'search',
     {
       title: 'Search Apple Notes',
-      description: "Search the user's Apple Notes by keyword. Returns matching notes with ids; use fetch to read one.",
-      inputSchema: { query: z.string() },
+      description: "Search the user's Apple Notes by keyword. Returns matching notes with ids; use fetch to read one. Follow next_cursor until null, including empty result pages. Password-protected notes are explicitly skipped.",
+      inputSchema: { query: z.string().min(1), cursor: z.string().optional(), limit: z.number().int().min(1).max(100).optional() },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: cardMeta,
     },
-    async ({ query }) => {
+    async ({ query, cursor, limit }) => {
       try {
-        const { results } = await exec('searchNotes', { query, limit: 20 });
+        const { results, ...page } = await exec('searchNotes', { query, cursor, limit: limit ?? 20 });
         const items = results.map((r) => ({ id: r.id, title: r.title, url: noteUrl(r.id) }));
-        return withCard('results', { query, results: items }, { results: items });
+        return withCard('results', { query, results: items }, { results: items, ...page });
       } catch (e) {
         return asError(e);
       }
@@ -114,9 +114,10 @@ export function buildServer(userId, { demo = false } = {}) {
     'list_notes',
     {
       title: 'List notes',
-      description: 'List notes, optionally filtered to a folder.',
+      description: 'List notes, optionally filtered to a folder. Follow next_cursor until null for complete coverage.',
       inputSchema: {
         folder: z.string().optional(),
+        cursor: z.string().optional(),
         limit: z.number().int().min(1).max(100).optional(),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },

@@ -11,6 +11,7 @@ export const redisConfigured = !!(SUPA_URL && SUPA_KEY);
 async function rpc(fn, args) {
   const r = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
+    signal: AbortSignal.timeout(10_000),
     headers: {
       'content-type': 'application/json',
       apikey: SUPA_KEY,
