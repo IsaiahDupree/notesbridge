@@ -79,6 +79,36 @@ function findNoteById(app, id) {
 `;
 
 const SOURCES = {
+  indexSnapshot: `
+function run(argv) {
+ var app=Application('Notes'), folders=app.folders(), rows=[], seen={};
+ for(var i=0;i<folders.length;i++){
+  var folder=folders[i], name=folder.name(), ids=folder.notes.id();
+  var names=folder.notes.name(), modified=folder.notes.modificationDate();
+  var locked=folder.notes.passwordProtected();
+  for(var j=0;j<ids.length;j++){
+   if(seen[ids[j]])continue;seen[ids[j]]=true;
+   rows.push({id:ids[j],title:names[j],folder:name,modified:modified[j].toISOString(),locked:!!locked[j]});
+  }
+ }
+ rows.sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});
+ return JSON.stringify({notes:rows});
+}
+`,
+
+  indexReadBatch: FIND_NOTE + `
+function run(argv) {
+ var args=JSON.parse(argv[0]), app=Application('Notes'), rows=[];
+ for(var i=0;i<args.ids.length;i++){
+  var n=findNoteById(app,args.ids[i]);
+  if(!n)throw new Error('Note changed during indexing; retry');
+  var locked=n.passwordProtected();
+  rows.push({id:n.id(),title:n.name(),folder:n.container().name(),modified:n.modificationDate().toISOString(),locked:!!locked,plaintext:locked?'':n.plaintext()});
+ }
+ return JSON.stringify({notes:rows});
+}
+`,
+
   searchNotes: FIND_NOTE + `
 function run(argv) {
  var args=JSON.parse(argv[0]), app=Application('Notes');
@@ -241,6 +271,7 @@ export async function runTool(tool, args = {}) {
     if(args.cursor!==undefined && (typeof args.cursor!=='string'||!args.cursor.startsWith('x-coredata://')))throw new Error('Invalid cursor');
   }
   if(tool==='searchNotes' && (typeof args.query!=='string'||!args.query.trim()))throw new Error('query must not be empty');
+  if(tool==='indexReadBatch' && (!Array.isArray(args.ids)||args.ids.length>25||args.ids.some(id=>typeof id!=='string'||!id.startsWith('x-coredata://'))))throw new Error('Index batch must contain at most 25 Apple Notes IDs');
   const payload = JSON.stringify(buildJxaArgs(tool, args));
   let stdout;
   try {

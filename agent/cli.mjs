@@ -11,6 +11,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { runTool } from './notes-jxa.mjs';
+import { refreshIndex, searchIndex, indexStatus } from './notes-index.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,6 +42,8 @@ const STALE_JOB_MS = 50_000;
 // LaunchAgent identifiers (macOS auto-start).
 const LABEL = 'com.notesbridge.apple-notes-agent';
 const PLIST_PATH = join(homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
+const INDEX_LABEL = 'com.notesbridge.apple-notes-index';
+const INDEX_PLIST_PATH = join(homedir(), 'Library', 'LaunchAgents', `${INDEX_LABEL}.plist`);
 const LOG_PATH = join(homedir(), 'Library', 'Logs', 'notesbridge-agent.log');
 const ERR_LOG_PATH = join(homedir(), 'Library', 'Logs', 'notesbridge-agent.err.log');
 
@@ -96,8 +99,10 @@ export function xmlEscape(s) {
 
 // Build the LaunchAgent plist XML. ProgramArguments run `<node> <cli.mjs> run`
 // with absolute paths so launchd can start it with no PATH assumptions.
-export function buildPlist({ label, nodePath, cliPath, workingDir, outLog, errLog }) {
-  const args = [nodePath, cliPath, 'run'];
+export function buildPlist({ label, nodePath, cliPath, workingDir, outLog, errLog, command = 'run', intervalSeconds }) {
+  if (!['run', 'index'].includes(command)) throw new Error('Unsupported LaunchAgent command');
+  if (intervalSeconds !== undefined && (!Number.isSafeInteger(intervalSeconds) || intervalSeconds < 300 || intervalSeconds > 86400)) throw new Error('Index refresh interval must be 300–86400 seconds');
+  const args = [nodePath, cliPath, command];
   const argXml = args.map((a) => `    <string>${xmlEscape(a)}</string>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -111,8 +116,7 @@ ${argXml}
   </array>
   <key>RunAtLoad</key>
   <true/>
-  <key>KeepAlive</key>
-  <true/>
+${intervalSeconds ? `  <key>StartInterval</key>\n  <integer>${intervalSeconds}</integer>` : '  <key>KeepAlive</key>\n  <true/>'}
   <key>WorkingDirectory</key>
   <string>${xmlEscape(workingDir)}</string>
   <key>StandardOutPath</key>
@@ -273,7 +277,13 @@ async function cmdRun(serverFlag) {
       log(`job ${job.jobId}: ${job.tool}`);
       let payload;
       try {
-        payload = { jobId: job.jobId, ok: true, result: await runTool(job.tool, job.args ?? {}) };
+        let result;
+        if (job.tool === 'searchNotes') {
+          try { result = await searchIndex({ ...job.args, limit: job.args?.limit ?? 20 }, runTool); }
+          catch { /* Live Notes remains authoritative if the optional index is unavailable. */ }
+        }
+        if (!result) result = await runTool(job.tool, job.args ?? {});
+        payload = { jobId: job.jobId, ok: true, result };
       } catch (e) {
         payload = { jobId: job.jobId, ok: false, error: e.message || String(e) };
       }
@@ -386,12 +396,32 @@ async function cmdInstall() {
   console.log('Stop & remove with:      apple-notes-agent uninstall');
 }
 
+async function cmdInstallIndex() {
+  if (process.platform !== 'darwin') throw new Error('Index auto-refresh uses macOS LaunchAgents');
+  // Building once before installation verifies Notes access and Node SQLite support.
+  console.log(JSON.stringify(await refreshIndex(runTool)));
+  const label = INDEX_LABEL;
+  const path = INDEX_PLIST_PATH;
+  const logDir = join(homedir(), 'Library', 'Application Support', 'NotesBridge');
+  const plist = buildPlist({ label, nodePath: process.execPath, cliPath: realpathSync(__filename), workingDir: homedir(), outLog: join(logDir, 'index-refresh.log'), errLog: join(logDir, 'index-refresh-error.log'), command: 'index', intervalSeconds: 900 });
+  runLaunchctl(['bootout', `gui/${process.getuid()}/${label}`]);
+  writeFileSync(path, plist, { mode: 0o600 });
+  const loaded = runLaunchctl(['bootstrap', `gui/${process.getuid()}`, path]);
+  if (!loaded.ok) throw new Error('Index built but launchctl could not install automatic refresh');
+  console.log(JSON.stringify({ installed: true, refresh_seconds: 900, plist: path }));
+}
+
 async function cmdUninstall() {
   if (process.platform !== 'darwin') {
     console.error('`uninstall` is only supported on macOS.');
     process.exit(1);
   }
   const uid = process.getuid();
+  if (existsSync(INDEX_PLIST_PATH)) {
+    runLaunchctl(['bootout', `gui/${uid}/${INDEX_LABEL}`]);
+    rmSync(INDEX_PLIST_PATH);
+    console.log('Stopped automatic index refresh; the private index is retained.');
+  }
   runLaunchctl(['bootout', `gui/${uid}/${LABEL}`]);
   runLaunchctl(['unload', PLIST_PATH]);
   if (existsSync(PLIST_PATH)) {
@@ -436,6 +466,9 @@ Commands:
   uninstall     Stop and remove the LaunchAgent.
   logs          Show the last ~50 lines of the background agent log.
   status        Check config and server reachability (does not consume jobs).
+  index         Build/refresh a private local text index in batches of 25 notes (Node 22.13+).
+  index-status  Show index counts and freshness without printing note contents.
+  index-install Build the index and refresh changes every 15 minutes at login.
 
 Options:
   --server URL  Override the relay server (default: ${DEFAULT_SERVER}).
@@ -460,6 +493,15 @@ async function main() {
       break;
     case 'status':
       await cmdStatus(server);
+      break;
+    case 'index':
+      console.log(JSON.stringify(await refreshIndex(runTool, progress => console.log(JSON.stringify(progress)))));
+      break;
+    case 'index-status':
+      console.log(JSON.stringify(await indexStatus()));
+      break;
+    case 'index-install':
+      await cmdInstallIndex();
       break;
     case 'install':
       await cmdInstall();

@@ -47,6 +47,15 @@ npx apple-notes-agent logs        # recent activity
 npx apple-notes-agent uninstall   # stop auto-start
 ```
 
+From this source checkout, for a private local text index (Node.js 22.13+), run
+`node agent/cli.mjs index-install`. This builds the index in batches of 25
+notes and checks for changes every 15 minutes. `index-status` reports coverage.
+Search checks the current Notes metadata before using cached text, and falls
+back to live Notes when the index is stale. Password-protected content and
+attachment contents are excluded. The SQLite index stays in an owner-only
+directory on the Mac, outside the repository.
+The indexing commands are available in source; npm publication is separate.
+
 ---
 
 ## What ChatGPT can do

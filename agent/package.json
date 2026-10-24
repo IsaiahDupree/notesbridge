@@ -9,6 +9,7 @@
   "files": [
     "cli.mjs",
     "notes-jxa.mjs",
+    "notes-index.mjs",
     "README.md",
     "LICENSE"
   ],

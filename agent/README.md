@@ -128,3 +128,21 @@ are not uploaded or indexed anywhere.
 ## License
 
 MIT © Isaiah Dupree
+
+## Private local indexing
+
+From this repository's root with Node.js 22.13 or later, run
+`node agent/cli.mjs index` to index the actual Apple Notes text in batches of 25.
+`node agent/cli.mjs index-status` reports counts without displaying note contents.
+`node agent/cli.mjs index-install`
+builds the index and installs a bounded incremental refresh every 15 minutes.
+The index is stored with owner-only permissions under
+`~/Library/Application Support/NotesBridge/notes-index.sqlite`, outside Git.
+Password-protected content is excluded; attachments are not indexed.
+
+The running agent uses the index for keyword search only after checking its
+IDs, titles, folders, timestamps and lock flags against the current Notes
+library. If the library changed or the optional SQLite runtime is unavailable,
+search uses the live Notes implementation. Existing Node.js 18+ relay use
+continues to work without indexing.
+These commands have not yet been published to npm.
